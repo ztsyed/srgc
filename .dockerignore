@@ -1,0 +1,11 @@
+.git
+.github
+.next
+node_modules
+data
+docs
+deploy/helm
+.env
+.env.local
+*.md
+.DS_Store

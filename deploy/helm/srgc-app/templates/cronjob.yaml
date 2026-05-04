@@ -1,0 +1,43 @@
+{{- if .Values.cron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "srgc.fullname" . }}-notify
+  labels: {{- include "srgc.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cron.schedule | quote }}
+  timeZone: {{ .Values.cron.timezone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0     # endpoint is intentionally not idempotent across retries
+      template:
+        metadata:
+          labels: {{- include "srgc.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: notify
+              image: curlimages/curl:8.10.1
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "srgc.fullname" . }}
+                      key: CRON_SECRET
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  url="http://{{ include "srgc.fullname" . }}:3000/api/cron/notify"
+                  echo "POST $url"
+                  curl --fail --silent --show-error \
+                       -H "Authorization: Bearer $CRON_SECRET" \
+                       -X POST "$url"
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits:   { memory: 64Mi }
+{{- end }}

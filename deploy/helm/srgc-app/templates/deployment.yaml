@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "srgc.fullname" . }}
+  labels: {{- include "srgc.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # ReadWriteOnce PVC -> avoid two pods contending
+  selector:
+    matchLabels: {{- include "srgc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "srgc.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: NODE_ENV
+              value: "production"
+            - name: DATA_DIR
+              value: "/data"
+            - name: NEXTAUTH_URL
+              value: {{ include "srgc.nextauthUrl" . | quote }}
+            - name: AUTH_URL
+              value: {{ include "srgc.nextauthUrl" . | quote }}
+            - name: TZ
+              value: {{ .Values.env.TZ | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ include "srgc.fullname" . }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet: { path: /signin, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /signin, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "srgc.fullname" . }}-data

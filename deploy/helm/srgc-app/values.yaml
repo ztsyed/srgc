@@ -1,0 +1,39 @@
+image:
+  repository: docker.io/ztsyed/srgc-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+host: ""                    # required at install time, e.g. srgc.example.com
+ingressClassName: nginx
+clusterIssuer: letsencrypt-prod
+tlsSecretName: srgc-tls
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+storage:
+  size: 5Gi
+  storageClassName: local-path
+
+# Provide via --set or sealed secret. Do not commit.
+secrets:
+  AUTH_SECRET: ""
+  AUTH_GOOGLE_ID: ""
+  AUTH_GOOGLE_SECRET: ""
+  ANTHROPIC_API_KEY: ""
+  ALLOWED_EMAILS: ""         # comma-separated; required at install time
+
+env:
+  NEXTAUTH_URL: ""           # leave blank to derive from host
+  TZ: "America/Los_Angeles"
+
+# Daily ntfy push for events that members marked "Notify me". The CronJob
+# hits the in-cluster service URL with a bearer token.
+cron:
+  enabled: true
+  schedule: "0 7 * * *"      # 7:00 AM in the cluster's TZ
+  timezone: "America/Los_Angeles"

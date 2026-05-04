@@ -1,0 +1,16 @@
+[
+  { "weekday": "MON", "ordinal": "every", "time": "18:00", "event": "Monday Night Trap League", "venue": "TRAP" },
+  { "weekday": "MON", "ordinal": 2,        "time": "17:00", "event": "NRL22 Rimfire Rifle",     "venue": "RP" },
+  { "weekday": "MON", "ordinal": 3,        "time": "17:00", "event": "Cowboy Action SASS",      "venue": "RP" },
+  { "weekday": "WED", "ordinal": "every", "time": "12:00", "event": "Action Pistol",            "venue": "RP" },
+  { "weekday": "WED", "ordinal": "every", "time": "17:00", "event": "Wednesday Night Trap League", "venue": "TRAP" },
+  { "weekday": "WED", "ordinal": 1,        "ordinalSecond": 3, "time": "18:00", "event": "Bullseye League", "venue": "RP" },
+  { "weekday": "THU", "ordinal": "every", "time": "09:00", "event": "Downrange Shooting",       "venue": "RP" },
+  { "weekday": "THU", "ordinal": 1,        "time": "17:30", "event": "Club Dinner (Served @ Grill)", "venue": "CLUBHOUSE" },
+  { "weekday": "THU", "ordinal": 1,        "time": "19:00", "event": "Club Meeting (Hybrid)",   "venue": "CLUBHOUSE" },
+  { "weekday": "THU", "ordinal": 2,        "time": "18:00", "event": "Board Meeting (Hybrid)",  "venue": "CLUBHOUSE" },
+  { "weekday": "FRI", "ordinal": "every", "time": "09:00", "event": "Drop-In Benchrest League", "venue": "RP" },
+  { "weekday": "SAT", "ordinal": 2,        "time": "09:00", "event": "Small Bore Silhouette Match", "venue": "RP" },
+  { "weekday": "SUN", "ordinal": 2,        "time": "08:00", "event": "Work Party",              "venue": "OTHER" },
+  { "weekday": "SUN", "ordinal": 3,        "time": "10:00", "event": "Cowboy Lever Action Match", "venue": "RP" }
+]
