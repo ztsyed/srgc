@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { uploadNewsletter, reparseMonth, reparseDuty, deleteMonth, uploadHandbook, uploadMembersCsv } from "./actions";
+import {
+  uploadNewsletter,
+  reparseMonth,
+  reparseDuty,
+  deleteMonth,
+  uploadHandbook,
+  uploadMembersCsv,
+  approveWaitlistEntry,
+  denyWaitlistEntry,
+  removeAllowedEntry,
+} from "./actions";
+import type { AllowlistEntry } from "@/lib/allowlist";
+import type { WaitlistEntry } from "@/lib/waitlist";
 
 type Result = { ok: boolean; message: string } | null;
 
@@ -10,11 +22,17 @@ export default function AdminClient({
   handbookKB,
   membersCount,
   membersUploadedAt,
+  allowlist,
+  waitlist,
+  currentAdminEmail,
 }: {
   months: string[];
   handbookKB: number | null;
   membersCount: number;
   membersUploadedAt: string | null;
+  allowlist: AllowlistEntry[];
+  waitlist: WaitlistEntry[];
+  currentAdminEmail: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<Result>(null);
@@ -48,6 +66,97 @@ export default function AdminClient({
           {result.message}
         </div>
       ) : null}
+
+      <section className="rounded-2xl border bg-white p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold">
+            Pending sign-in requests
+            {waitlist.length > 0 ? (
+              <span className="ml-2 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-500 text-white text-xs font-medium">
+                {waitlist.length}
+              </span>
+            ) : null}
+          </h2>
+        </div>
+        {waitlist.length === 0 ? (
+          <p className="text-sm text-slate-500">No pending requests.</p>
+        ) : (
+          <ul className="divide-y">
+            {waitlist.map((w) => (
+              <li key={w.email} className="py-3 flex items-center gap-3">
+                {w.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={w.image} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full flex-shrink-0" />
+                ) : (
+                  <span className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs flex-shrink-0">
+                    {(w.name ?? w.email).charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{w.name ?? w.email}</div>
+                  <div className="text-xs text-slate-500 truncate">
+                    {w.email} · {w.attemptCount} {w.attemptCount === 1 ? "attempt" : "attempts"} · last {new Date(w.lastSeenAt).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  disabled={pending}
+                  className="text-sm px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                  onClick={() => run(() => approveWaitlistEntry(w.email))}
+                >
+                  Approve
+                </button>
+                <button
+                  disabled={pending}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                  onClick={() => {
+                    if (confirm(`Dismiss ${w.email}? They can re-request by signing in again.`)) {
+                      run(() => denyWaitlistEntry(w.email));
+                    }
+                  }}
+                >
+                  Dismiss
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-2xl border bg-white p-4 sm:p-6">
+        <h2 className="font-semibold mb-3">Approved members ({allowlist.length})</h2>
+        {allowlist.length === 0 ? (
+          <p className="text-sm text-slate-500">Nobody is on the allowlist.</p>
+        ) : (
+          <ul className="divide-y">
+            {allowlist.map((a) => {
+              const isSelf = currentAdminEmail !== null && a.email === currentAdminEmail;
+              return (
+                <li key={a.email} className="py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{a.name ?? a.email}</div>
+                    <div className="text-xs text-slate-500 truncate">
+                      {a.email} · approved {new Date(a.approvedAt).toLocaleDateString()}
+                      {a.approvedBy ? ` by ${a.approvedBy}` : ""}
+                      {isSelf ? " · you" : ""}
+                    </div>
+                  </div>
+                  <button
+                    disabled={pending || isSelf}
+                    className="text-sm px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                    onClick={() => {
+                      if (confirm(`Revoke access for ${a.email}?`)) {
+                        run(() => removeAllowedEntry(a.email));
+                      }
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <section className="rounded-2xl border bg-white p-4 sm:p-6 space-y-4">
         <h2 className="font-semibold">Upload monthly newsletter</h2>

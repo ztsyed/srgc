@@ -13,6 +13,8 @@ export const RECURRING_PATH = path.join(DATA_DIR, "recurring.json");
 export const HANDBOOK_PATH = path.join(PDF_DIR, "handbook.pdf");
 export const MEMBERS_PATH = path.join(DATA_DIR, "members.json");
 export const NOTIFICATIONS_PATH = path.join(DATA_DIR, "notifications.json");
+export const ALLOWLIST_PATH = path.join(DATA_DIR, "allowlist.json");
+export const WAITLIST_PATH = path.join(DATA_DIR, "waitlist.json");
 
 export const SEED_DIR = path.resolve(process.cwd(), "data-seed");
 

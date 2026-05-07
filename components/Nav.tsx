@@ -11,7 +11,9 @@ type NavUser = {
   image: string | null;
 };
 
-const LINKS: ReadonlyArray<{ href: string; label: string }> = [
+type NavLink = { href: string; label: string; adminOnly?: boolean };
+
+const LINKS: ReadonlyArray<NavLink> = [
   { href: "/", label: "Today" },
   { href: "/chat", label: "Ask" },
   { href: "/calendar", label: "Calendar" },
@@ -19,7 +21,7 @@ const LINKS: ReadonlyArray<{ href: string; label: string }> = [
   { href: "/handbook", label: "Handbook" },
   { href: "/newsletters", label: "Newsletters" },
   { href: "/settings", label: "Settings" },
-  { href: "/admin", label: "Admin" },
+  { href: "/admin", label: "Admin", adminOnly: true },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -44,9 +46,18 @@ function Avatar({ user, size = 28 }: { user: NavUser; size?: number }) {
   );
 }
 
-export default function Nav({ user }: { user: NavUser }) {
+export default function Nav({
+  user,
+  isAdmin = false,
+  waitlistCount = 0,
+}: {
+  user: NavUser;
+  isAdmin?: boolean;
+  waitlistCount?: number;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const visibleLinks = LINKS.filter((l) => !l.adminOnly || isAdmin);
 
   // Close the drawer whenever route changes (covers Link clicks).
   useEffect(() => {
@@ -72,7 +83,7 @@ export default function Nav({ user }: { user: NavUser }) {
 
         {/* Desktop links: only at md+ */}
         <nav className="hidden md:flex items-center gap-4">
-          {LINKS.map((l) => (
+          {visibleLinks.map((l) => (
             <Link
               key={l.href}
               href={l.href}
@@ -83,6 +94,11 @@ export default function Nav({ user }: { user: NavUser }) {
               }
             >
               {l.label}
+              {l.adminOnly && waitlistCount > 0 ? (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-500 text-white text-xs font-medium align-middle">
+                  {waitlistCount}
+                </span>
+              ) : null}
             </Link>
           ))}
         </nav>
@@ -130,17 +146,22 @@ export default function Nav({ user }: { user: NavUser }) {
       {open ? (
         <div id="mobile-menu" className="md:hidden border-t border-slate-800 bg-slate-900">
           <ul className="max-w-5xl mx-auto px-2 py-2 flex flex-col">
-            {LINKS.map((l) => {
+            {visibleLinks.map((l) => {
               const active = isActive(pathname, l.href);
               return (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className={`block px-3 py-3 rounded-lg text-base ${
+                    className={`flex items-center justify-between px-3 py-3 rounded-lg text-base ${
                       active ? "bg-slate-800 text-white" : "text-slate-200 hover:bg-slate-800"
                     }`}
                   >
-                    {l.label}
+                    <span>{l.label}</span>
+                    {l.adminOnly && waitlistCount > 0 ? (
+                      <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-amber-500 text-white text-xs font-medium">
+                        {waitlistCount}
+                      </span>
+                    ) : null}
                   </Link>
                 </li>
               );

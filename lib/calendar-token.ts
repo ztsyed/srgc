@@ -25,10 +25,3 @@ export function emailFromToken(candidate: string, allowedEmails: string[]): stri
   }
   return null;
 }
-
-export function allowedEmailsFromEnv(): string[] {
-  return (process.env.ALLOWED_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}

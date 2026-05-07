@@ -25,7 +25,8 @@ secrets:
   AUTH_GOOGLE_ID: ""
   AUTH_GOOGLE_SECRET: ""
   ANTHROPIC_API_KEY: ""
-  ALLOWED_EMAILS: ""         # comma-separated; required at install time
+  ALLOWED_EMAILS: ""         # comma-separated; seeds /data/allowlist.json on first boot only
+  ADMIN_EMAILS: ""           # comma-separated; required, gates /admin and bypasses allowlist
 
 env:
   NEXTAUTH_URL: ""           # leave blank to derive from host

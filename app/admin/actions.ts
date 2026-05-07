@@ -3,7 +3,9 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { auth, isAdmin } from "@/lib/auth";
+import { addToAllowlist, removeFromAllowlist } from "@/lib/allowlist";
+import { removeFromWaitlist } from "@/lib/waitlist";
 import { parseNewsletter, parseDutyRoster } from "@/lib/claude";
 import { writeDutyMonth } from "@/lib/duty";
 import type { DutyAssignment } from "@/lib/duty-shared";
@@ -16,14 +18,16 @@ import {
   newsletterPdfPath,
 } from "@/lib/paths";
 
-async function requireAuth() {
+async function requireAdmin(): Promise<string> {
   const s = await auth();
-  if (!s?.user) throw new Error("Unauthorized");
+  if (!s?.user?.email) throw new Error("Unauthorized");
+  if (!isAdmin(s.user.email)) throw new Error("Forbidden");
+  return s.user.email.toLowerCase();
 }
 
 export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolean; message: string; month?: string }> {
   try {
-    await requireAuth();
+    await requireAdmin();
     await ensureDataDirs();
     const file = formData.get("file");
     if (!(file instanceof File) || file.size === 0) {
@@ -113,7 +117,7 @@ async function writeDutyFromParsed(
 }
 
 export async function reparseDuty(month: string): Promise<{ ok: boolean; message: string }> {
-  await requireAuth();
+  await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
   try {
     const buf = await fs.readFile(newsletterPdfPath(month));
@@ -134,7 +138,7 @@ export async function reparseDuty(month: string): Promise<{ ok: boolean; message
 }
 
 export async function reparseMonth(month: string): Promise<{ ok: boolean; message: string }> {
-  await requireAuth();
+  await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
   try {
     const buf = await fs.readFile(newsletterPdfPath(month));
@@ -150,7 +154,7 @@ export async function reparseMonth(month: string): Promise<{ ok: boolean; messag
 }
 
 export async function deleteMonth(month: string): Promise<{ ok: boolean; message: string }> {
-  await requireAuth();
+  await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
   await fs.rm(eventsJsonPath(month), { force: true });
   await fs.rm(newsletterPdfPath(month), { force: true });
@@ -161,7 +165,7 @@ export async function deleteMonth(month: string): Promise<{ ok: boolean; message
 }
 
 export async function uploadMembersCsv(formData: FormData): Promise<{ ok: boolean; message: string }> {
-  await requireAuth();
+  await requireAdmin();
   await ensureDataDirs();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -184,7 +188,7 @@ export async function uploadMembersCsv(formData: FormData): Promise<{ ok: boolea
 }
 
 export async function uploadHandbook(formData: FormData): Promise<{ ok: boolean; message: string }> {
-  await requireAuth();
+  await requireAdmin();
   await ensureDataDirs();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -213,4 +217,44 @@ function guessMonthFromFilename(name: string): string | null {
     return `${m[2]}-${String(idx + 1).padStart(2, "0")}`;
   }
   return null;
+}
+
+export async function approveWaitlistEntry(email: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    const adminEmail = await requireAdmin();
+    if (!email) return { ok: false, message: "Missing email." };
+    await addToAllowlist({ email, approvedBy: adminEmail });
+    await removeFromWaitlist(email);
+    revalidatePath("/admin");
+    return { ok: true, message: `Approved ${email}.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function denyWaitlistEntry(email: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    await requireAdmin();
+    if (!email) return { ok: false, message: "Missing email." };
+    await removeFromWaitlist(email);
+    revalidatePath("/admin");
+    return { ok: true, message: `Removed ${email} from waitlist.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function removeAllowedEntry(email: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    const adminEmail = await requireAdmin();
+    if (!email) return { ok: false, message: "Missing email." };
+    if (email.toLowerCase() === adminEmail) {
+      return { ok: false, message: "You can't remove your own access." };
+    }
+    await removeFromAllowlist(email);
+    revalidatePath("/admin");
+    return { ok: true, message: `Removed ${email}.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
 }

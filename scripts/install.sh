@@ -34,6 +34,7 @@ AUTH_GOOGLE_ID="$(get_env AUTH_GOOGLE_ID)"
 AUTH_GOOGLE_SECRET="$(get_env AUTH_GOOGLE_SECRET)"
 ANTHROPIC_API_KEY="$(get_env ANTHROPIC_API_KEY)"
 ALLOWED_EMAILS="$(get_env ALLOWED_EMAILS)"
+ADMIN_EMAILS="$(get_env ADMIN_EMAILS)"
 
 missing=()
 [ -z "$HOST" ]               && missing+=(DEPLOY_HOST)
@@ -41,7 +42,7 @@ missing=()
 [ -z "$AUTH_GOOGLE_ID" ]     && missing+=(AUTH_GOOGLE_ID)
 [ -z "$AUTH_GOOGLE_SECRET" ] && missing+=(AUTH_GOOGLE_SECRET)
 [ -z "$ANTHROPIC_API_KEY" ]  && missing+=(ANTHROPIC_API_KEY)
-[ -z "$ALLOWED_EMAILS" ]     && missing+=(ALLOWED_EMAILS)
+[ -z "$ADMIN_EMAILS" ]       && missing+=(ADMIN_EMAILS)
 if [ ${#missing[@]} -gt 0 ]; then
   echo "ERROR: missing keys in .env.local: ${missing[*]}" >&2
   exit 1
@@ -57,6 +58,7 @@ helm upgrade --install "${RELEASE}" deploy/helm/srgc-app \
   --set "secrets.AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}" \
   --set "secrets.ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
   --set "secrets.ALLOWED_EMAILS=${ALLOWED_EMAILS}" \
+  --set "secrets.ADMIN_EMAILS=${ADMIN_EMAILS}" \
   --wait --timeout 5m
 
 echo

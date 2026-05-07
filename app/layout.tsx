@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { auth } from "@/lib/auth";
+import { auth, isAdmin } from "@/lib/auth";
+import { waitlistCount } from "@/lib/waitlist";
 import Nav from "@/components/Nav";
 
 export const metadata: Metadata = {
@@ -15,6 +16,8 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+  const admin = isAdmin(session?.user?.email);
+  const pending = admin ? await waitlistCount() : 0;
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col">
@@ -25,6 +28,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               email: session.user.email ?? null,
               image: session.user.image ?? null,
             }}
+            isAdmin={admin}
+            waitlistCount={pending}
           />
         ) : null}
         <main className="flex-1">{children}</main>

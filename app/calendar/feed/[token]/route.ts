@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
-import { allowedEmailsFromEnv, emailFromToken } from "@/lib/calendar-token";
+import { emailFromToken } from "@/lib/calendar-token";
+import { loadAllowlist } from "@/lib/allowlist";
+import { adminEmailsList } from "@/lib/auth";
 import { eventsBetween } from "@/lib/events";
 import { buildIcs, eventUid, type IcsEvent } from "@/lib/ics";
 import { siteUrl } from "@/lib/site-url";
@@ -16,7 +18,11 @@ export async function GET(
 ) {
   const { token: raw } = await params;
   const token = raw.replace(/\.ics$/i, "");
-  const email = emailFromToken(token, allowedEmailsFromEnv());
+  const allowlist = await loadAllowlist();
+  const candidates = Array.from(
+    new Set([...allowlist.entries.map((e) => e.email), ...adminEmailsList()]),
+  );
+  const email = emailFromToken(token, candidates);
   if (!email) return new Response("Forbidden", { status: 403 });
 
   const today = new Date();

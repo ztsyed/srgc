@@ -37,11 +37,13 @@ export default async function SignIn({
           </button>
         </form>
         {sp.error ? (
-          <p className="text-red-600 text-sm mt-4">
-            {sp.error === "AccessDenied"
-              ? "Your account is not on the allowlist."
-              : `Sign-in error: ${sp.error}`}
-          </p>
+          sp.error === "AccessDenied" ? (
+            <p className="text-slate-700 text-sm mt-4">
+              Your sign-in request has been received. An admin will review it shortly.
+            </p>
+          ) : (
+            <p className="text-red-600 text-sm mt-4">Sign-in error: {sp.error}</p>
+          )
         ) : null}
       </div>
     </main>
