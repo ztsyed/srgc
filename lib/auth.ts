@@ -1,6 +1,6 @@
 import "server-only";
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import { authConfig } from "./auth.config";
 import { isAllowed } from "./allowlist";
 import { recordDenial } from "./waitlist";
 
@@ -23,14 +23,9 @@ export function adminEmailsList(): string[] {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
-  ],
-  pages: { signIn: "/signin", error: "/signin" },
+  ...authConfig,
   callbacks: {
+    ...authConfig.callbacks,
     async signIn({ user }) {
       const email = user.email?.toLowerCase();
       if (!email) return false;
@@ -47,10 +42,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return false;
     },
-    session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub;
-      return session;
-    },
   },
-  trustHost: true,
 });
