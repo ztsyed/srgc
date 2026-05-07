@@ -21,7 +21,7 @@ export async function GET(
     return new Response(data, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="SRGC-${month}.pdf"`,
+        "Content-Disposition": `inline; filename="SRGC-${month}.pdf"`,
         "Cache-Control": "private, max-age=3600",
       },
     });

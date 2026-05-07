@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import Link from "next/link";
 import { PDF_DIR, ensureDataDirs } from "@/lib/paths";
 
 export const dynamic = "force-dynamic";
@@ -43,14 +44,14 @@ export default async function NewslettersPage() {
       ) : (
         <ul className="rounded-xl border bg-white divide-y">
           {months.map((m) => (
-            <li key={m} className="flex items-center justify-between p-4">
-              <span className="font-medium">{prettyMonth(m)}</span>
-              <a
-                href={`/api/newsletter/${m}`}
-                className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-100"
+            <li key={m}>
+              <Link
+                href={`/newsletters/${m}`}
+                className="flex items-center justify-between p-4 hover:bg-slate-50"
               >
-                Download PDF
-              </a>
+                <span className="font-medium">{prettyMonth(m)}</span>
+                <span className="text-sm text-slate-500">View &rarr;</span>
+              </Link>
             </li>
           ))}
         </ul>
