@@ -22,56 +22,60 @@ async function requireAuth() {
 }
 
 export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolean; message: string; month?: string }> {
-  await requireAuth();
-  await ensureDataDirs();
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, message: "No file provided." };
-  }
-  const explicitMonth = (formData.get("month") as string | null)?.trim();
-  if (explicitMonth && !/^\d{4}-\d{2}$/.test(explicitMonth)) {
-    return { ok: false, message: "Month override must be YYYY-MM." };
-  }
-  const buf = Buffer.from(await file.arrayBuffer());
-
-  const month = explicitMonth || guessMonthFromFilename(file.name);
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-    return { ok: false, message: "Couldn't determine month from filename. Provide it manually (YYYY-MM)." };
-  }
-
-  await fs.writeFile(newsletterPdfPath(month), buf);
-
   try {
-    const parsed = await parseNewsletter(buf, file.name);
-    const finalMonth = explicitMonth || (/^\d{4}-\d{2}$/.test(parsed.month) ? parsed.month : month);
-    // Write the events JSON FIRST. Only after that succeeds do we rename the
-    // PDF — if the rename fails we still have the data, and if the events
-    // write fails we haven't moved the PDF away from where we just put it.
-    await fs.writeFile(eventsJsonPath(finalMonth), JSON.stringify(parsed.events, null, 2));
-    if (finalMonth !== month) {
-      await fs.rename(newsletterPdfPath(month), newsletterPdfPath(finalMonth));
+    await requireAuth();
+    await ensureDataDirs();
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, message: "No file provided." };
+    }
+    const explicitMonth = (formData.get("month") as string | null)?.trim();
+    if (explicitMonth && !/^\d{4}-\d{2}$/.test(explicitMonth)) {
+      return { ok: false, message: "Month override must be YYYY-MM." };
+    }
+    const buf = Buffer.from(await file.arrayBuffer());
+
+    const month = explicitMonth || guessMonthFromFilename(file.name);
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      return { ok: false, message: "Couldn't determine month from filename. Provide it manually (YYYY-MM)." };
     }
 
-    // Best-effort duty extraction from the same PDF — doesn't block the upload result.
-    let dutyMessage = "";
+    await fs.writeFile(newsletterPdfPath(month), buf);
+
     try {
-      const duty = await parseDutyRoster(buf, file.name);
-      const written = await writeDutyFromParsed(duty, file.name);
-      dutyMessage = ` Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}.`;
-    } catch (e) {
-      dutyMessage = ` Duty parse skipped: ${(e as Error).message}`;
-    }
+      const parsed = await parseNewsletter(buf, file.name);
+      const finalMonth = explicitMonth || (/^\d{4}-\d{2}$/.test(parsed.month) ? parsed.month : month);
+      // Write the events JSON FIRST. Only after that succeeds do we rename the
+      // PDF — if the rename fails we still have the data, and if the events
+      // write fails we haven't moved the PDF away from where we just put it.
+      await fs.writeFile(eventsJsonPath(finalMonth), JSON.stringify(parsed.events, null, 2));
+      if (finalMonth !== month) {
+        await fs.rename(newsletterPdfPath(month), newsletterPdfPath(finalMonth));
+      }
 
-    revalidatePath("/admin");
-    revalidatePath("/");
-    revalidatePath("/calendar");
-    return {
-      ok: true,
-      message: `Parsed ${parsed.events.length} events for ${finalMonth}.${dutyMessage}`,
-      month: finalMonth,
-    };
+      // Best-effort duty extraction from the same PDF — doesn't block the upload result.
+      let dutyMessage = "";
+      try {
+        const duty = await parseDutyRoster(buf, file.name);
+        const written = await writeDutyFromParsed(duty, file.name);
+        dutyMessage = ` Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}.`;
+      } catch (e) {
+        dutyMessage = ` Duty parse skipped: ${(e as Error).message}`;
+      }
+
+      revalidatePath("/admin");
+      revalidatePath("/");
+      revalidatePath("/calendar");
+      return {
+        ok: true,
+        message: `Parsed ${parsed.events.length} events for ${finalMonth}.${dutyMessage}`,
+        month: finalMonth,
+      };
+    } catch (e) {
+      return { ok: false, message: `Saved PDF but parse failed: ${(e as Error).message}` };
+    }
   } catch (e) {
-    return { ok: false, message: `Saved PDF but parse failed: ${(e as Error).message}` };
+    return { ok: false, message: `Upload failed: ${(e as Error).message}` };
   }
 }
 

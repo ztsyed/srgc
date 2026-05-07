@@ -21,7 +21,14 @@ export default function AdminClient({
 
   function run(fn: () => Promise<Result>) {
     setResult(null);
-    startTransition(async () => setResult(await fn()));
+    startTransition(async () => {
+      try {
+        setResult(await fn());
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setResult({ ok: false, message: `Request failed: ${msg}` });
+      }
+    });
   }
 
   return (
