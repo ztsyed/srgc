@@ -16,6 +16,7 @@ export default async function TodayPage() {
   ]);
 
   const nextMeeting = nextRecurrence(now, /* Thu */ 4, /* 1st */ 1);
+  const nextBoardMeeting = nextRecurrence(now, /* Thu */ 4, /* 2nd */ 2);
   const nextWorkParty = nextRecurrence(now, /* Sun */ 0, /* 2nd */ 2);
   const nextDuty = member ? await findNextDutyForMember(member, now) : null;
 
@@ -32,6 +33,7 @@ export default async function TodayPage() {
         <ForYouCard
           member={member}
           nextMeeting={nextMeeting}
+          nextBoardMeeting={nextBoardMeeting}
           nextWorkParty={nextWorkParty}
           nextDuty={nextDuty}
         />

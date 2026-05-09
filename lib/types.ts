@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-export type Venue = "RP" | "TRAP" | "CLUBHOUSE" | "OTHER";
+export type Venue = "RP" | "TRAP" | "FIVE_STAND" | "CLUBHOUSE" | "OTHER";
 
 export const VENUE_LABEL: Record<Venue, string> = {
   RP: "Rifle & Pistol Range",
   TRAP: "Trap Range",
+  FIVE_STAND: "5-Stand",
   CLUBHOUSE: "Clubhouse",
   OTHER: "Other",
 };
@@ -31,7 +32,7 @@ export const RecurringRowSchema = z.object({
   ordinalSecond: z.number().int().min(1).max(5).optional(),
   time: z.string().regex(/^\d{2}:\d{2}$/),
   event: z.string().min(1),
-  venue: z.enum(["RP", "TRAP", "CLUBHOUSE", "OTHER"]),
+  venue: z.enum(["RP", "TRAP", "FIVE_STAND", "CLUBHOUSE", "OTHER"]),
 });
 export type RecurringRow = z.infer<typeof RecurringRowSchema>;
 

@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 const VENUE_DOT: Record<Venue, string> = {
   RP: "bg-blue-600",
   TRAP: "bg-amber-600",
+  FIVE_STAND: "bg-cyan-600",
   CLUBHOUSE: "bg-emerald-600",
   OTHER: "bg-slate-500",
 };
@@ -92,7 +93,7 @@ export default async function CalendarPage({
               <span className="text-xs sm:text-sm font-medium">{c.day}</span>
               {venues ? (
                 <div className="mt-auto flex gap-1">
-                  {(["RP", "TRAP", "CLUBHOUSE", "OTHER"] as Venue[])
+                  {(["RP", "TRAP", "FIVE_STAND", "CLUBHOUSE", "OTHER"] as Venue[])
                     .filter((v) => venues.has(v))
                     .map((v) => (
                       <span key={v} className={`w-1.5 h-1.5 rounded-full ${VENUE_DOT[v]}`} />
@@ -107,6 +108,7 @@ export default async function CalendarPage({
       <div className="mt-6 flex flex-wrap gap-3 text-xs text-slate-600">
         <Legend color="bg-blue-600" label="Rifle & Pistol" />
         <Legend color="bg-amber-600" label="Trap" />
+        <Legend color="bg-cyan-600" label="5-Stand" />
         <Legend color="bg-emerald-600" label="Clubhouse" />
         <Legend color="bg-slate-500" label="Other" />
       </div>

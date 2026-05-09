@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 // Download a single event as .ics for one-shot "Add to Calendar".
 // Query params: date=YYYY-MM-DD, time=HH:MM, end=HH:MM (optional),
-// title=..., venue=RP|TRAP|CLUBHOUSE|OTHER (optional)
+// title=..., venue=RP|TRAP|FIVE_STAND|CLUBHOUSE|OTHER (optional)
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });

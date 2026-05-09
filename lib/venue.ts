@@ -1,19 +1,24 @@
 import type { Venue } from "./types";
 
-const TRAP_KEYWORDS = ["trap", "5-stand", "ata", "sbtl", "bayprof", "small bore silhouette", "clay"];
+const FIVE_STAND_KEYWORDS = ["5-stand", "five-stand", "five stand"];
+const TRAP_KEYWORDS = ["trap", "ata", "sbtl", "bayprof", "clay"];
 const RP_KEYWORDS = [
   "bullseye", "action pistol", "cowboy", "nrl22", "downrange", "benchrest",
-  "sass", "rifle", "pistol", "yamaguchi", "club shoot",
+  "sass", "rifle", "pistol", "yamaguchi", "club shoot", "small bore silhouette",
 ];
 const CLUBHOUSE_KEYWORDS = ["dinner", "meeting", "raffle", "feast"];
 
 export function deriveVenue(eventName: string, exUse: string | undefined): Venue {
   const ex = (exUse ?? "").toUpperCase().trim();
   if (ex.startsWith("RP") || ex.startsWith("RF")) return "RP";
+  if (ex.startsWith("5S")) return "FIVE_STAND";
   if (ex.startsWith("TF")) return "TRAP";
   if (ex === "CH") return "CLUBHOUSE";
 
   const name = eventName.toLowerCase();
+  // Check 5-Stand before Trap so it doesn't get swallowed by the "trap" keyword
+  // when an event is named e.g. "5-Stand Trap Practice".
+  if (FIVE_STAND_KEYWORDS.some((k) => name.includes(k))) return "FIVE_STAND";
   if (TRAP_KEYWORDS.some((k) => name.includes(k))) return "TRAP";
   if (CLUBHOUSE_KEYWORDS.some((k) => name.includes(k))) return "CLUBHOUSE";
   if (RP_KEYWORDS.some((k) => name.includes(k))) return "RP";
@@ -33,7 +38,6 @@ export type ShootingHours =
 export function shootingHoursFor(date: Date): ShootingHours {
   const day = date.getDay(); // 0 = Sun ... 6 = Sat
   const dom = date.getDate();
-  const month = date.getMonth(); // 0-indexed
   const sundayOrdinal = Math.ceil(dom / 7); // 1..5
 
   if (isFixedClosure(date)) {
@@ -50,6 +54,22 @@ export function shootingHoursFor(date: Date): ShootingHours {
   }
   if (day === 6) return { status: "open", from: "09:05", to: "17:55" };
   return { status: "open", from: "09:05", to: "20:55" };
+}
+
+// Trap range public-shooting hours: Wed evenings and Sat afternoons only.
+// Same fixed closures and members-only holidays as the club-wide rule.
+// 5-Stand uses the same schedule.
+export function trapHoursFor(date: Date): ShootingHours {
+  const day = date.getDay();
+  if (isFixedClosure(date)) {
+    return { status: "closed", reason: fixedClosureReason(date)! };
+  }
+  if (isMembersOnlyHoliday(date)) {
+    return { status: "members-only", from: "09:05", to: "17:55", reason: membersOnlyReason(date)! };
+  }
+  if (day === 3) return { status: "open", from: "17:00", to: "21:00" };
+  if (day === 6) return { status: "open", from: "13:00", to: "17:00" };
+  return { status: "closed", reason: "No public Trap shooting today" };
 }
 
 function ordinalLabel(n: number): string {

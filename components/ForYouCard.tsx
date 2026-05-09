@@ -5,6 +5,7 @@ import type { DutyAssignment } from "@/lib/duty-shared";
 type Props = {
   member: Member;
   nextMeeting: Date | null;
+  nextBoardMeeting: Date | null;
   nextWorkParty: Date | null;
   nextDuty: { assignment: DutyAssignment; strict: boolean } | null;
 };
@@ -26,7 +27,7 @@ function dutyDate(iso: string): string {
   return fmtDate(new Date(y, m - 1, d));
 }
 
-export default function ForYouCard({ member, nextMeeting, nextWorkParty, nextDuty }: Props) {
+export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, nextWorkParty, nextDuty }: Props) {
   return (
     <section className="rounded-2xl border bg-slate-900 text-white p-4 sm:p-5">
       <header className="mb-3 flex items-center gap-3">
@@ -42,10 +43,14 @@ export default function ForYouCard({ member, nextMeeting, nextWorkParty, nextDut
         </div>
       </header>
 
-      <ul className="grid sm:grid-cols-3 gap-3 text-sm">
+      <ul className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
         <Row
           label="Next general meeting"
           when={nextMeeting ? `${fmtDate(nextMeeting)} · ${fmt12h("19:00")}` : "—"}
+        />
+        <Row
+          label="Next board meeting"
+          when={nextBoardMeeting ? `${fmtDate(nextBoardMeeting)} · ${fmt12h("18:00")}` : "—"}
         />
         <Row
           label="Next work party"

@@ -1,6 +1,6 @@
 import type { DayEvent, Venue } from "@/lib/types";
 import { VENUE_LABEL } from "@/lib/types";
-import { shootingHoursFor, type ShootingHours } from "@/lib/venue";
+import { shootingHoursFor, trapHoursFor, type ShootingHours } from "@/lib/venue";
 import EventActions from "./EventActions";
 
 function isoLocal(d: Date): string {
@@ -13,12 +13,14 @@ function isoLocal(d: Date): string {
 const VENUE_COLORS: Record<Venue, string> = {
   RP: "bg-blue-50 border-blue-200",
   TRAP: "bg-amber-50 border-amber-200",
+  FIVE_STAND: "bg-cyan-50 border-cyan-200",
   CLUBHOUSE: "bg-emerald-50 border-emerald-200",
   OTHER: "bg-slate-50 border-slate-200",
 };
 const VENUE_DOT: Record<Venue, string> = {
   RP: "bg-blue-600",
   TRAP: "bg-amber-600",
+  FIVE_STAND: "bg-cyan-600",
   CLUBHOUSE: "bg-emerald-600",
   OTHER: "bg-slate-500",
 };
@@ -28,6 +30,28 @@ function formatTime(t: string): string {
   const ampm = h < 12 ? "AM" : "PM";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function VenueHoursLine({ hours }: { hours: ShootingHours }) {
+  if (hours.status === "open") {
+    return (
+      <p className="text-xs text-slate-600 -mt-2 mb-3">
+        Open {formatTime(hours.from)} – {formatTime(hours.to)}
+      </p>
+    );
+  }
+  if (hours.status === "members-only") {
+    return (
+      <p className="text-xs text-amber-800 -mt-2 mb-3">
+        Members only · {formatTime(hours.from)} – {formatTime(hours.to)}
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-rose-700 -mt-2 mb-3">
+      Closed · {hours.reason}
+    </p>
+  );
 }
 
 function HoursBanner({ hours }: { hours: ShootingHours }) {
@@ -70,19 +94,25 @@ export default function DayView({
   newsletterMonth?: string | null;
 }) {
   const hours = shootingHoursFor(date);
+  const trapHours = trapHoursFor(date);
   const groups: Record<Venue, DayEvent[]> = {
-    RP: [], TRAP: [], CLUBHOUSE: [], OTHER: [],
+    RP: [], TRAP: [], FIVE_STAND: [], CLUBHOUSE: [], OTHER: [],
   };
   for (const e of events) groups[e.venue].push(e);
 
-  const order: Venue[] = ["RP", "TRAP", "CLUBHOUSE", "OTHER"];
+  const order: Venue[] = ["RP", "TRAP", "FIVE_STAND", "CLUBHOUSE", "OTHER"];
+  const venueHours: Partial<Record<Venue, ShootingHours>> = {
+    RP: hours,
+    TRAP: trapHours,
+    FIVE_STAND: trapHours,
+  };
 
   return (
     <div className="space-y-4">
       <HoursBanner hours={hours} />
       <div className="grid gap-4 sm:grid-cols-2">
         {order.map((v) =>
-          v === "OTHER" && groups.OTHER.length === 0 ? null : (
+          (v === "OTHER" || v === "FIVE_STAND") && groups[v].length === 0 ? null : (
             <section
               key={v}
               className={`rounded-2xl border ${VENUE_COLORS[v]} p-4`}
@@ -91,6 +121,7 @@ export default function DayView({
                 <span className={`w-2 h-2 rounded-full ${VENUE_DOT[v]}`} />
                 {VENUE_LABEL[v]}
               </h2>
+              {venueHours[v] ? <VenueHoursLine hours={venueHours[v]!} /> : null}
               {groups[v].length === 0 ? (
                 <p className="text-sm text-slate-500">Nothing scheduled.</p>
               ) : (
