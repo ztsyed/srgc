@@ -10,9 +10,10 @@ type Props = {
   endTime?: string;
   title: string;
   venue: Venue;
+  newsletterMonth?: string; // YYYY-MM, latest uploaded newsletter
 };
 
-export default function EventActions({ date, time, endTime, title, venue }: Props) {
+export default function EventActions({ date, time, endTime, title, venue, newsletterMonth }: Props) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -46,6 +47,15 @@ export default function EventActions({ date, time, endTime, title, venue }: Prop
       >
         📅 Add to calendar
       </a>
+      {newsletterMonth ? (
+        <a
+          href={`/newsletters/${newsletterMonth}`}
+          className="text-[11px] px-2 py-0.5 rounded-md border border-slate-300 hover:bg-slate-100"
+          aria-label="View this event's source newsletter"
+        >
+          📰 Newsletter
+        </a>
+      ) : null}
       {msg ? (
         <span className={`text-[11px] ${msg.ok ? "text-emerald-700" : "text-rose-700"}`}>
           {msg.text}

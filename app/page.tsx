@@ -3,12 +3,17 @@ import ForYouCard from "@/components/ForYouCard";
 import { eventsForDate } from "@/lib/events";
 import { findNextDutyForMember } from "@/lib/duty";
 import { getCurrentMember, nextRecurrence } from "@/lib/me";
+import { latestNewsletterMonth } from "@/lib/paths";
 
 export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
   const now = new Date();
-  const [events, member] = await Promise.all([eventsForDate(now), getCurrentMember()]);
+  const [events, member, newsletterMonth] = await Promise.all([
+    eventsForDate(now),
+    getCurrentMember(),
+    latestNewsletterMonth(),
+  ]);
 
   const nextMeeting = nextRecurrence(now, /* Thu */ 4, /* 1st */ 1);
   const nextWorkParty = nextRecurrence(now, /* Sun */ 0, /* 2nd */ 2);
@@ -31,7 +36,7 @@ export default async function TodayPage() {
           nextDuty={nextDuty}
         />
       ) : null}
-      <DayView date={now} events={events} />
+      <DayView date={now} events={events} newsletterMonth={newsletterMonth} />
     </div>
   );
 }

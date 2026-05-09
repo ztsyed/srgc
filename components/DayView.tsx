@@ -60,7 +60,15 @@ function HoursBanner({ hours }: { hours: ShootingHours }) {
   );
 }
 
-export default function DayView({ date, events }: { date: Date; events: DayEvent[] }) {
+export default function DayView({
+  date,
+  events,
+  newsletterMonth,
+}: {
+  date: Date;
+  events: DayEvent[];
+  newsletterMonth?: string | null;
+}) {
   const hours = shootingHoursFor(date);
   const groups: Record<Venue, DayEvent[]> = {
     RP: [], TRAP: [], CLUBHOUSE: [], OTHER: [],
@@ -108,6 +116,11 @@ export default function DayView({ date, events }: { date: Date; events: DayEvent
                           endTime={e.to}
                           title={e.event}
                           venue={e.venue}
+                          newsletterMonth={
+                            e.source === "monthly" && newsletterMonth
+                              ? newsletterMonth
+                              : undefined
+                          }
                         />
                       </div>
                     </li>
