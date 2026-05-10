@@ -11,9 +11,23 @@ type Props = {
   title: string;
   venue: Venue;
   newsletterMonth?: string; // YYYY-MM, latest uploaded newsletter
+  variant?: "light" | "dark";
 };
 
-export default function EventActions({ date, time, endTime, title, venue, newsletterMonth }: Props) {
+const STYLES = {
+  light: "border-slate-300 hover:bg-slate-100",
+  dark: "border-slate-600/70 hover:bg-slate-700 text-slate-100",
+} as const;
+
+export default function EventActions({
+  date,
+  time,
+  endTime,
+  title,
+  venue,
+  newsletterMonth,
+  variant = "light",
+}: Props) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -29,37 +43,29 @@ export default function EventActions({ date, time, endTime, title, venue, newsle
     });
   }
 
+  const pill = `text-[11px] px-2 py-0.5 rounded-md border whitespace-nowrap inline-flex items-center gap-1 ${STYLES[variant]} disabled:opacity-50`;
+  const okText = variant === "dark" ? "text-emerald-300" : "text-emerald-700";
+  const errText = variant === "dark" ? "text-rose-300" : "text-rose-700";
+
   return (
-    <div className="flex items-center gap-1.5 mt-1">
-      <button
-        type="button"
-        onClick={ntfy}
-        disabled={pending}
-        className="text-[11px] px-2 py-0.5 rounded-md border border-slate-300 hover:bg-slate-100 disabled:opacity-50"
-        aria-label="Notify me on the morning of this event"
-      >
-        🔔 Notify me
+    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+      <button type="button" onClick={ntfy} disabled={pending} className={pill} aria-label="Notify me on the morning of this event">
+        <span aria-hidden>🔔</span> Notify
       </button>
-      <a
-        href={icsHref}
-        className="text-[11px] px-2 py-0.5 rounded-md border border-slate-300 hover:bg-slate-100"
-        aria-label="Download as calendar event"
-      >
-        📅 Add to calendar
+      <a href={icsHref} className={pill} aria-label="Download as calendar event">
+        <span aria-hidden>📅</span> Calendar
       </a>
       {newsletterMonth ? (
         <a
           href={`/newsletters/${newsletterMonth}`}
-          className="text-[11px] px-2 py-0.5 rounded-md border border-slate-300 hover:bg-slate-100"
+          className={pill}
           aria-label="View this event's source newsletter"
         >
-          📰 Newsletter
+          <span aria-hidden>📰</span> Newsletter
         </a>
       ) : null}
       {msg ? (
-        <span className={`text-[11px] ${msg.ok ? "text-emerald-700" : "text-rose-700"}`}>
-          {msg.text}
-        </span>
+        <span className={`text-[11px] whitespace-nowrap ${msg.ok ? okText : errText}`}>{msg.text}</span>
       ) : null}
     </div>
   );

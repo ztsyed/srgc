@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Member } from "@/lib/members-shared";
 import type { DutyAssignment } from "@/lib/duty-shared";
+import EventActions from "./EventActions";
 
 type Props = {
   member: Member;
@@ -26,6 +27,12 @@ function dutyDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   return fmtDate(new Date(y, m - 1, d));
 }
+function isoLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, nextWorkParty, nextDuty }: Props) {
   return (
@@ -47,14 +54,47 @@ export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, next
         <Row
           label="Next general meeting"
           when={nextMeeting ? `${fmtDate(nextMeeting)} · ${fmt12h("19:00")}` : "—"}
+          actions={
+            nextMeeting ? (
+              <EventActions
+                date={isoLocal(nextMeeting)}
+                time="19:00"
+                title="Club Meeting (Hybrid)"
+                venue="CLUBHOUSE"
+                variant="dark"
+              />
+            ) : null
+          }
         />
         <Row
           label="Next board meeting"
           when={nextBoardMeeting ? `${fmtDate(nextBoardMeeting)} · ${fmt12h("18:00")}` : "—"}
+          actions={
+            nextBoardMeeting ? (
+              <EventActions
+                date={isoLocal(nextBoardMeeting)}
+                time="18:00"
+                title="Board Meeting (Hybrid)"
+                venue="CLUBHOUSE"
+                variant="dark"
+              />
+            ) : null
+          }
         />
         <Row
           label="Next work party"
           when={nextWorkParty ? `${fmtDate(nextWorkParty)} · ${fmt12h("08:00")}` : "—"}
+          actions={
+            nextWorkParty ? (
+              <EventActions
+                date={isoLocal(nextWorkParty)}
+                time="08:00"
+                title="Work Party"
+                venue="OTHER"
+                variant="dark"
+              />
+            ) : null
+          }
         />
         <Row
           label="My next range duty"
@@ -88,11 +128,20 @@ export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, next
   );
 }
 
-function Row({ label, when }: { label: string; when: React.ReactNode }) {
+function Row({
+  label,
+  when,
+  actions,
+}: {
+  label: string;
+  when: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
   return (
     <li className="rounded-xl bg-slate-800 p-3">
       <p className="text-xs opacity-60">{label}</p>
       <p className="font-medium mt-0.5">{when}</p>
+      {actions ?? null}
     </li>
   );
 }
