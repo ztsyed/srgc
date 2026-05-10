@@ -1,19 +1,20 @@
 import DayView from "@/components/DayView";
 import ForYouCard from "@/components/ForYouCard";
-import { eventsForDate } from "@/lib/events";
+import { eventsForDate, loadEventsMeta, monthKey } from "@/lib/events";
 import { findNextDutyForMember } from "@/lib/duty";
 import { getCurrentMember, nextRecurrence } from "@/lib/me";
-import { latestNewsletterMonth } from "@/lib/paths";
 
 export const dynamic = "force-dynamic";
 
 export default async function TodayPage() {
   const now = new Date();
-  const [events, member, newsletterMonth] = await Promise.all([
+  const month = monthKey(now);
+  const [events, member, meta] = await Promise.all([
     eventsForDate(now),
     getCurrentMember(),
-    latestNewsletterMonth(),
+    loadEventsMeta(month),
   ]);
+  const newsletter = meta?.eventsPage ? { month, page: meta.eventsPage } : null;
 
   const nextMeeting = nextRecurrence(now, /* Thu */ 4, /* 1st */ 1);
   const nextBoardMeeting = nextRecurrence(now, /* Thu */ 4, /* 2nd */ 2);
@@ -38,7 +39,7 @@ export default async function TodayPage() {
           nextDuty={nextDuty}
         />
       ) : null}
-      <DayView date={now} events={events} newsletterMonth={newsletterMonth} />
+      <DayView date={now} events={events} newsletter={newsletter} />
     </div>
   );
 }

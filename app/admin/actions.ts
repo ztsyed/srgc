@@ -15,6 +15,7 @@ import {
   PDF_DIR,
   ensureDataDirs,
   eventsJsonPath,
+  eventsMetaPath,
   newsletterPdfPath,
 } from "@/lib/paths";
 
@@ -53,6 +54,15 @@ export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolea
       // PDF — if the rename fails we still have the data, and if the events
       // write fails we haven't moved the PDF away from where we just put it.
       await fs.writeFile(eventsJsonPath(finalMonth), JSON.stringify(parsed.events, null, 2));
+      if (parsed.eventsPage) {
+        await fs.writeFile(
+          eventsMetaPath(finalMonth),
+          JSON.stringify({ eventsPage: parsed.eventsPage }, null, 2),
+        );
+      } else {
+        // No page reported — drop any stale meta so the pill hides cleanly.
+        await fs.rm(eventsMetaPath(finalMonth), { force: true });
+      }
       if (finalMonth !== month) {
         await fs.rename(newsletterPdfPath(month), newsletterPdfPath(finalMonth));
       }
@@ -144,10 +154,19 @@ export async function reparseMonth(month: string): Promise<{ ok: boolean; messag
     const buf = await fs.readFile(newsletterPdfPath(month));
     const parsed = await parseNewsletter(buf, `${month}.pdf`);
     await fs.writeFile(eventsJsonPath(month), JSON.stringify(parsed.events, null, 2));
+    if (parsed.eventsPage) {
+      await fs.writeFile(
+        eventsMetaPath(month),
+        JSON.stringify({ eventsPage: parsed.eventsPage }, null, 2),
+      );
+    } else {
+      await fs.rm(eventsMetaPath(month), { force: true });
+    }
     revalidatePath("/admin");
     revalidatePath("/");
     revalidatePath("/calendar");
-    return { ok: true, message: `Re-parsed ${parsed.events.length} events for ${month}.` };
+    const pageNote = parsed.eventsPage ? ` (page ${parsed.eventsPage})` : " (page not detected)";
+    return { ok: true, message: `Re-parsed ${parsed.events.length} events for ${month}${pageNote}.` };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
@@ -157,6 +176,7 @@ export async function deleteMonth(month: string): Promise<{ ok: boolean; message
   await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
   await fs.rm(eventsJsonPath(month), { force: true });
+  await fs.rm(eventsMetaPath(month), { force: true });
   await fs.rm(newsletterPdfPath(month), { force: true });
   revalidatePath("/admin");
   revalidatePath("/");

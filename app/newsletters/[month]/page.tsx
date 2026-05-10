@@ -17,11 +17,15 @@ function prettyMonth(month: string): string {
 
 export default async function NewsletterViewerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ month: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { month } = await params;
   if (!/^\d{4}-\d{2}$/.test(month)) notFound();
+  const { page: pageRaw } = await searchParams;
+  const pageNum = pageRaw && /^\d+$/.test(pageRaw) ? parseInt(pageRaw, 10) : null;
 
   await ensureDataDirs();
   let exists = false;
@@ -32,7 +36,10 @@ export default async function NewsletterViewerPage({
     exists = false;
   }
 
-  const pdfUrl = `/api/newsletter/${month}`;
+  // The PDF viewer plugin honors `#page=N` only when it appears in the resource
+  // URL itself (the <object> data attribute) — not when it's on the parent
+  // page's URL hash. So we compose it server-side from a ?page=N query param.
+  const pdfUrl = `/api/newsletter/${month}${pageNum && pageNum > 0 ? `#page=${pageNum}` : ""}`;
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6">

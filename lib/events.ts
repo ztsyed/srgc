@@ -1,7 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
-import { EVENTS_DIR, RECURRING_PATH, ensureDataDirs, eventsJsonPath } from "./paths";
-import { type DayEvent, type EventRow, type RecurringRow, RecurringRowSchema, EventRowSchema } from "./types";
+import { EVENTS_DIR, RECURRING_PATH, ensureDataDirs, eventsJsonPath, eventsMetaPath } from "./paths";
+import { type DayEvent, type EventRow, type EventsMeta, type RecurringRow, RecurringRowSchema, EventRowSchema, EventsMetaSchema } from "./types";
 import { deriveVenue } from "./venue";
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
@@ -21,6 +21,17 @@ export async function loadRecurring(): Promise<RecurringRow[]> {
   const raw = await fs.readFile(RECURRING_PATH, "utf8");
   const parsed = JSON.parse(raw);
   return RecurringRowSchema.array().parse(parsed);
+}
+
+export async function loadEventsMeta(month: string): Promise<EventsMeta | null> {
+  await ensureDataDirs();
+  try {
+    const raw = await fs.readFile(eventsMetaPath(month), "utf8");
+    return EventsMetaSchema.parse(JSON.parse(raw));
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
+    return null;
+  }
 }
 
 export async function loadMonth(month: string): Promise<EventRow[]> {

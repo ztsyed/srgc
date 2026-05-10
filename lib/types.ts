@@ -22,9 +22,17 @@ export type EventRow = z.infer<typeof EventRowSchema> & { venue: Venue };
 
 export const ParsedEventsSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
+  // Optional: an older parse (or a model miss) may not include it. The
+  // per-event "Newsletter" pill simply doesn't render when this is absent.
+  eventsPage: z.number().int().positive().optional(),
   events: z.array(EventRowSchema),
 });
 export type ParsedEvents = z.infer<typeof ParsedEventsSchema>;
+
+export const EventsMetaSchema = z.object({
+  eventsPage: z.number().int().positive(),
+});
+export type EventsMeta = z.infer<typeof EventsMetaSchema>;
 
 export const RecurringRowSchema = z.object({
   weekday: z.enum(["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]),

@@ -36,22 +36,11 @@ export function newsletterPdfPath(month: string): string {
   return path.join(PDF_DIR, `${month}.pdf`);
 }
 
-export async function latestNewsletterMonth(): Promise<string | null> {
-  await ensureDataDirs();
-  let entries: string[];
-  try {
-    entries = await fs.readdir(PDF_DIR);
-  } catch {
-    return null;
-  }
-  const months = entries
-    .map((n) => n.match(/^(\d{4}-\d{2})\.pdf$/i)?.[1])
-    .filter((m): m is string => Boolean(m))
-    .sort();
-  return months.length > 0 ? months[months.length - 1] : null;
-}
 export function eventsJsonPath(month: string): string {
   return path.join(EVENTS_DIR, `${month}.json`);
+}
+export function eventsMetaPath(month: string): string {
+  return path.join(EVENTS_DIR, `${month}.meta.json`);
 }
 export function dutyJsonPath(month: string): string {
   return path.join(DUTY_DIR, `${month}.json`);

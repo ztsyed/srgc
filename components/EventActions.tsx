@@ -10,7 +10,7 @@ type Props = {
   endTime?: string;
   title: string;
   venue: Venue;
-  newsletterMonth?: string; // YYYY-MM, latest uploaded newsletter
+  newsletter?: { month: string; page?: number };
   variant?: "light" | "dark";
 };
 
@@ -25,7 +25,7 @@ export default function EventActions({
   endTime,
   title,
   venue,
-  newsletterMonth,
+  newsletter,
   variant = "light",
 }: Props) {
   const [pending, start] = useTransition();
@@ -55,11 +55,15 @@ export default function EventActions({
       <a href={icsHref} className={pill} aria-label="Download as calendar event">
         <span aria-hidden>📅</span> Calendar
       </a>
-      {newsletterMonth ? (
+      {newsletter ? (
         <a
-          href={`/newsletters/${newsletterMonth}`}
+          href={`/newsletters/${newsletter.month}${newsletter.page ? `?page=${newsletter.page}` : ""}`}
           className={pill}
-          aria-label="View this event's source newsletter"
+          aria-label={
+            newsletter.page
+              ? `Open the ${newsletter.month} newsletter at the Upcoming Events page`
+              : "Open this event's source newsletter"
+          }
         >
           <span aria-hidden>📰</span> Newsletter
         </a>

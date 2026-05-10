@@ -13,6 +13,7 @@ Return JSON ONLY (no prose, no code fences) matching this exact shape:
 
 {
   "month": "YYYY-MM",
+  "eventsPage": 4,            // 1-indexed PDF page where the Upcoming Events table starts
   "events": [
     {
       "date": "YYYY-MM-DD",
@@ -27,6 +28,7 @@ Return JSON ONLY (no prose, no code fences) matching this exact shape:
 
 Rules:
 - "month" is the newsletter's own month (e.g. cover/header says "March 2026" -> "2026-03"). Always emit YYYY-MM.
+- "eventsPage" is the 1-indexed page in this PDF where the "Upcoming Events" table starts (e.g. if the table heading appears on page 4 of an 8-page newsletter, return 4). It enables deep-linking the app's per-event "Newsletter" pill to the correct page.
 - Convert dates like "5-Mar" using the newsletter's month/year context.
 - IMPORTANT: include ONLY rows whose date falls inside the newsletter's own month. If a row shows a different month abbreviation (e.g. "14-Feb" appearing in a January newsletter), SKIP it — it will be covered by that month's own newsletter.
 - Convert times like "9:00 AM" -> "09:00", "12:00 PM" -> "12:00", "9:00 PM" -> "21:00".

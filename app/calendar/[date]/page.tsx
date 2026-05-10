@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DayView from "@/components/DayView";
-import { eventsForDate } from "@/lib/events";
-import { latestNewsletterMonth } from "@/lib/paths";
+import { eventsForDate, loadEventsMeta, monthKey } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +18,12 @@ export default async function DayDetail({ params }: { params: Promise<{ date: st
   const date = parseDate(dateStr);
   if (!date) notFound();
 
-  const [events, newsletterMonth] = await Promise.all([
+  const month = monthKey(date);
+  const [events, meta] = await Promise.all([
     eventsForDate(date),
-    latestNewsletterMonth(),
+    loadEventsMeta(month),
   ]);
+  const newsletter = meta?.eventsPage ? { month, page: meta.eventsPage } : null;
   const fmt = new Intl.DateTimeFormat("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
@@ -39,7 +40,7 @@ export default async function DayDetail({ params }: { params: Promise<{ date: st
         </Link>
         <h1 className="text-2xl sm:text-3xl font-semibold mt-1">{fmt.format(date)}</h1>
       </header>
-      <DayView date={date} events={events} newsletterMonth={newsletterMonth} />
+      <DayView date={date} events={events} newsletter={newsletter} />
     </div>
   );
 }

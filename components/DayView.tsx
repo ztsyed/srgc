@@ -87,11 +87,11 @@ function HoursBanner({ hours }: { hours: ShootingHours }) {
 export default function DayView({
   date,
   events,
-  newsletterMonth,
+  newsletter,
 }: {
   date: Date;
   events: DayEvent[];
-  newsletterMonth?: string | null;
+  newsletter?: { month: string; page?: number } | null;
 }) {
   const hours = shootingHoursFor(date);
   const trapHours = trapHoursFor(date);
@@ -147,9 +147,9 @@ export default function DayView({
                           endTime={e.to}
                           title={e.event}
                           venue={e.venue}
-                          newsletterMonth={
-                            e.source === "monthly" && newsletterMonth
-                              ? newsletterMonth
+                          newsletter={
+                            e.source === "monthly" && newsletter
+                              ? newsletter
                               : undefined
                           }
                         />
