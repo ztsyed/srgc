@@ -9,6 +9,7 @@ export const PDF_DIR = path.join(DATA_DIR, "pdfs");
 export const EVENTS_DIR = path.join(DATA_DIR, "events");
 export const DUTY_DIR = path.join(DATA_DIR, "duty");
 export const PREFS_DIR = path.join(DATA_DIR, "prefs");
+export const USAGE_DIR = path.join(DATA_DIR, "usage");
 export const RECURRING_PATH = path.join(DATA_DIR, "recurring.json");
 export const HANDBOOK_PATH = path.join(PDF_DIR, "handbook.pdf");
 export const MEMBERS_PATH = path.join(DATA_DIR, "members.json");
@@ -23,6 +24,7 @@ export async function ensureDataDirs(): Promise<void> {
   await fs.mkdir(EVENTS_DIR, { recursive: true });
   await fs.mkdir(DUTY_DIR, { recursive: true });
   await fs.mkdir(PREFS_DIR, { recursive: true });
+  await fs.mkdir(USAGE_DIR, { recursive: true });
   // Seed recurring.json on first boot if missing.
   try {
     await fs.access(RECURRING_PATH);
@@ -41,6 +43,9 @@ export function eventsJsonPath(month: string): string {
 }
 export function eventsMetaPath(month: string): string {
   return path.join(EVENTS_DIR, `${month}.meta.json`);
+}
+export function usagePath(month: string): string {
+  return path.join(USAGE_DIR, `${month}.jsonl`);
 }
 export function dutyJsonPath(month: string): string {
   return path.join(DUTY_DIR, `${month}.json`);

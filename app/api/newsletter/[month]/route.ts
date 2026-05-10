@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import { auth } from "@/lib/auth";
 import { newsletterPdfPath, ensureDataDirs } from "@/lib/paths";
+import { logUsage } from "@/lib/usage";
 
 export async function GET(
   _req: Request,
@@ -18,6 +19,13 @@ export async function GET(
   await ensureDataDirs();
   try {
     const data = await fs.readFile(newsletterPdfPath(month));
+    await logUsage({
+      email: session.user.email,
+      name: session.user.name,
+      kind: "newsletter",
+      path: `/api/newsletter/${month}`,
+      detail: month,
+    });
     return new Response(data, {
       headers: {
         "Content-Type": "application/pdf",

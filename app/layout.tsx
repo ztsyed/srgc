@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { auth, isAdmin } from "@/lib/auth";
 import { waitlistCount } from "@/lib/waitlist";
 import Nav from "@/components/Nav";
+import UsageLogger from "@/components/UsageLogger";
 
 export const metadata: Metadata = {
   title: "SRGC Today",
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           />
         ) : null}
         <main className="flex-1">{children}</main>
+        {session?.user && !admin ? <UsageLogger /> : null}
       </body>
     </html>
   );

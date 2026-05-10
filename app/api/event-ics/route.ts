@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { buildIcs, eventUid, type IcsEvent } from "@/lib/ics";
 import { siteUrl } from "@/lib/site-url";
 import { VENUE_LABEL, type Venue } from "@/lib/types";
+import { logUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,13 @@ export async function GET(req: NextRequest) {
   };
   const body = buildIcs(title, [event]);
   const safeName = title.replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 60);
+  await logUsage({
+    email: session.user.email,
+    name: session.user.name,
+    kind: "ics",
+    path: `/api/event-ics`,
+    detail: `${date} ${time} · ${title}`,
+  });
   return new Response(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",

@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import { auth } from "@/lib/auth";
 import { HANDBOOK_PATH, ensureDataDirs } from "@/lib/paths";
+import { logUsage } from "@/lib/usage";
 
 export async function GET() {
   const session = await auth();
@@ -8,6 +9,12 @@ export async function GET() {
   await ensureDataDirs();
   try {
     const data = await fs.readFile(HANDBOOK_PATH);
+    await logUsage({
+      email: session.user.email,
+      name: session.user.name,
+      kind: "handbook",
+      path: "/handbook/pdf",
+    });
     return new Response(data, {
       headers: {
         "Content-Type": "application/pdf",
