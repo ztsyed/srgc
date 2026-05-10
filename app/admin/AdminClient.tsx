@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   uploadNewsletter,
   reparseMonth,
@@ -36,24 +37,37 @@ export default function AdminClient({
 }) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<Result>(null);
+  const [runningId, setRunningId] = useState<string | null>(null);
 
-  function run(fn: () => Promise<Result>) {
+  function run(id: string, fn: () => Promise<Result>) {
     setResult(null);
+    setRunningId(id);
     startTransition(async () => {
       try {
         setResult(await fn());
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         setResult({ ok: false, message: `Request failed: ${msg}` });
+      } finally {
+        setRunningId(null);
       }
     });
   }
+  const isRunning = (id: string) => runningId === id;
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-      <header>
-        <p className="text-sm text-slate-500">Admin</p>
-        <h1 className="text-2xl sm:text-3xl font-semibold">Manage Newsletters &amp; Handbook</h1>
+      <header className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-slate-500">Admin</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold">Manage Newsletters &amp; Handbook</h1>
+        </div>
+        <Link
+          href="/admin/usage"
+          className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 whitespace-nowrap"
+        >
+          Member usage →
+        </Link>
       </header>
 
       {result ? (
@@ -101,20 +115,20 @@ export default function AdminClient({
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                  onClick={() => run(() => approveWaitlistEntry(w.email))}
+                  onClick={() => run(`approve-${w.email}`, () => approveWaitlistEntry(w.email))}
                 >
-                  Approve
+                  {isRunning(`approve-${w.email}`) ? "Approving…" : "Approve"}
                 </button>
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                   onClick={() => {
                     if (confirm(`Dismiss ${w.email}? They can re-request by signing in again.`)) {
-                      run(() => denyWaitlistEntry(w.email));
+                      run(`dismiss-${w.email}`, () => denyWaitlistEntry(w.email));
                     }
                   }}
                 >
-                  Dismiss
+                  {isRunning(`dismiss-${w.email}`) ? "Dismissing…" : "Dismiss"}
                 </button>
               </li>
             ))}
@@ -145,11 +159,11 @@ export default function AdminClient({
                     className="text-sm px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                     onClick={() => {
                       if (confirm(`Revoke access for ${a.email}?`)) {
-                        run(() => removeAllowedEntry(a.email));
+                        run(`remove-${a.email}`, () => removeAllowedEntry(a.email));
                       }
                     }}
                   >
-                    Remove
+                    {isRunning(`remove-${a.email}`) ? "Removing…" : "Remove"}
                   </button>
                 </li>
               );
@@ -168,7 +182,7 @@ export default function AdminClient({
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            run(() => uploadNewsletter(fd));
+            run("upload-newsletter", () => uploadNewsletter(fd));
           }}
         >
           <input type="file" name="file" accept="application/pdf" required className="block text-sm" />
@@ -184,7 +198,7 @@ export default function AdminClient({
             disabled={pending}
             className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
           >
-            {pending ? "Working…" : "Upload & parse"}
+            {isRunning("upload-newsletter") ? "Working…" : "Upload & parse"}
           </button>
         </form>
       </section>
@@ -201,25 +215,25 @@ export default function AdminClient({
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => run(() => reparseMonth(m))}
+                  onClick={() => run(`reparse-events-${m}`, () => reparseMonth(m))}
                 >
-                  Re-parse events
+                  {isRunning(`reparse-events-${m}`) ? "Re-parsing…" : "Re-parse events"}
                 </button>
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => run(() => reparseDuty(m))}
+                  onClick={() => run(`reparse-duty-${m}`, () => reparseDuty(m))}
                 >
-                  Re-parse duty
+                  {isRunning(`reparse-duty-${m}`) ? "Re-parsing…" : "Re-parse duty"}
                 </button>
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                   onClick={() => {
-                    if (confirm(`Delete ${m}?`)) run(() => deleteMonth(m));
+                    if (confirm(`Delete ${m}?`)) run(`delete-${m}`, () => deleteMonth(m));
                   }}
                 >
-                  Delete
+                  {isRunning(`delete-${m}`) ? "Deleting…" : "Delete"}
                 </button>
               </li>
             ))}
@@ -240,7 +254,7 @@ export default function AdminClient({
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            run(() => uploadMembersCsv(fd));
+            run("upload-members", () => uploadMembersCsv(fd));
           }}
         >
           <input type="file" name="file" accept=".csv,text/csv" required className="block text-sm" />
@@ -249,7 +263,7 @@ export default function AdminClient({
             disabled={pending}
             className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
           >
-            {pending ? "Uploading…" : "Upload CSV"}
+            {isRunning("upload-members") ? "Uploading…" : "Upload CSV"}
           </button>
         </form>
       </section>
@@ -264,7 +278,7 @@ export default function AdminClient({
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            run(() => uploadHandbook(fd));
+            run("upload-handbook", () => uploadHandbook(fd));
           }}
         >
           <input type="file" name="file" accept="application/pdf" required className="block text-sm" />
@@ -273,7 +287,7 @@ export default function AdminClient({
             disabled={pending}
             className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
           >
-            {pending ? "Uploading…" : "Replace handbook"}
+            {isRunning("upload-handbook") ? "Uploading…" : "Replace handbook"}
           </button>
         </form>
       </section>
