@@ -33,7 +33,11 @@ export function deriveVenue(eventName: string, exUse: string | undefined): Venue
 export type ShootingHours =
   | { status: "open"; from: string; to: string; note?: string }
   | { status: "closed"; reason: string }
-  | { status: "members-only"; from: string; to: string; reason: string };
+  | { status: "members-only"; from: string; to: string; reason: string }
+  // The range isn't open for casual public shooting today, but it isn't
+  // "closed" either — leagues / scheduled events can still run. Used by Trap
+  // and 5-Stand on Mon/Tue/Thu/Fri/Sun where public hours aren't posted.
+  | { status: "schedule-only"; publicHours: string };
 
 export function shootingHoursFor(date: Date): ShootingHours {
   const day = date.getDay(); // 0 = Sun ... 6 = Sat
@@ -69,7 +73,10 @@ export function trapHoursFor(date: Date): ShootingHours {
   }
   if (day === 3) return { status: "open", from: "17:00", to: "21:00" };
   if (day === 6) return { status: "open", from: "13:00", to: "17:00" };
-  return { status: "closed", reason: "No public Trap shooting today" };
+  return {
+    status: "schedule-only",
+    publicHours: "Wed 5:00 – 9:00 PM · Sat 1:00 – 5:00 PM",
+  };
 }
 
 function ordinalLabel(n: number): string {

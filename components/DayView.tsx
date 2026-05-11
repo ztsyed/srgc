@@ -47,6 +47,13 @@ function VenueHoursLine({ hours }: { hours: ShootingHours }) {
       </p>
     );
   }
+  if (hours.status === "schedule-only") {
+    return (
+      <p className="text-xs text-slate-500 -mt-2 mb-3">
+        Public hours: {hours.publicHours}
+      </p>
+    );
+  }
   return (
     <p className="text-xs text-rose-700 -mt-2 mb-3">
       Closed · {hours.reason}
@@ -76,12 +83,17 @@ function HoursBanner({ hours }: { hours: ShootingHours }) {
       </div>
     );
   }
-  return (
-    <div className="rounded-xl bg-rose-700 text-white px-4 py-3 text-sm">
-      <span className="font-semibold">Closed for shooting</span>
-      <span className="ml-2 opacity-90">· {hours.reason}</span>
-    </div>
-  );
+  if (hours.status === "closed") {
+    return (
+      <div className="rounded-xl bg-rose-700 text-white px-4 py-3 text-sm">
+        <span className="font-semibold">Closed for shooting</span>
+        <span className="ml-2 opacity-90">· {hours.reason}</span>
+      </div>
+    );
+  }
+  // shootingHoursFor() never returns "schedule-only" — that's a Trap-only
+  // case. Render nothing rather than fall through with a bad cast.
+  return null;
 }
 
 export default function DayView({
