@@ -26,17 +26,22 @@ export function deriveVenue(eventName: string, exUse: string | undefined): Venue
 }
 
 // Shooting-allowed hours rule (page 12 of newsletter, Regularly Scheduled Events)
-// M-F 9:05 AM to 8:55 PM, Sat 9:05 AM to 5:55 PM
-// 1st & 3rd Sunday 10:05 AM to 2:55 PM
-// Closed all shooting on 2nd, 4th, 5th Sundays, Easter, Thanksgiving, Christmas
-// Members only on Christmas Eve, NYE, NY Day
+// SRGC is a members club: the M-F 9:05–8:55, Sat 9:05–5:55, 1st/3rd Sun
+// 10:05–2:55 windows are when MEMBERS may shoot (guests permitted).
+// On Christmas Eve / NYE / NY Day members may still shoot, but no guests.
+// Easter / Thanksgiving / Christmas are fully closed.
+// Trap range additionally has dedicated public-open hours: Wed 5–9 PM,
+// Sat 1–5 PM (5-Stand mirrors Trap).
 export type ShootingHours =
+  // Genuinely open to the public (Trap Wed/Sat only).
   | { status: "open"; from: string; to: string; note?: string }
+  // Members may shoot. `noGuests` flips on the holidays where members are
+  // allowed but cannot bring guests. `reason` carries the holiday name.
+  | { status: "members"; from: string; to: string; noGuests?: boolean; reason?: string }
+  // Fully closed for everyone.
   | { status: "closed"; reason: string }
-  | { status: "members-only"; from: string; to: string; reason: string }
-  // The range isn't open for casual public shooting today, but it isn't
-  // "closed" either — leagues / scheduled events can still run. Used by Trap
-  // and 5-Stand on Mon/Tue/Thu/Fri/Sun where public hours aren't posted.
+  // No public-open window today, but leagues / scheduled events can run.
+  // Used by Trap and 5-Stand on Mon/Tue/Thu/Fri/Sun.
   | { status: "schedule-only"; publicHours: string };
 
 export function shootingHoursFor(date: Date): ShootingHours {
@@ -48,20 +53,26 @@ export function shootingHoursFor(date: Date): ShootingHours {
     return { status: "closed", reason: fixedClosureReason(date)! };
   }
   if (isMembersOnlyHoliday(date)) {
-    return { status: "members-only", from: "09:05", to: "17:55", reason: membersOnlyReason(date)! };
+    return {
+      status: "members",
+      from: "09:05",
+      to: "17:55",
+      noGuests: true,
+      reason: membersOnlyReason(date)!,
+    };
   }
   if (day === 0) {
     if (sundayOrdinal === 1 || sundayOrdinal === 3) {
-      return { status: "open", from: "10:05", to: "14:55", note: "1st/3rd Sunday hours" };
+      return { status: "members", from: "10:05", to: "14:55", reason: "1st/3rd Sunday hours" };
     }
     return { status: "closed", reason: `${ordinalLabel(sundayOrdinal)} Sunday — no shooting` };
   }
-  if (day === 6) return { status: "open", from: "09:05", to: "17:55" };
-  return { status: "open", from: "09:05", to: "20:55" };
+  if (day === 6) return { status: "members", from: "09:05", to: "17:55" };
+  return { status: "members", from: "09:05", to: "20:55" };
 }
 
 // Trap range public-shooting hours: Wed evenings and Sat afternoons only.
-// Same fixed closures and members-only holidays as the club-wide rule.
+// Same fixed closures and members-no-guests holidays as the club-wide rule.
 // 5-Stand uses the same schedule.
 export function trapHoursFor(date: Date): ShootingHours {
   const day = date.getDay();
@@ -69,7 +80,13 @@ export function trapHoursFor(date: Date): ShootingHours {
     return { status: "closed", reason: fixedClosureReason(date)! };
   }
   if (isMembersOnlyHoliday(date)) {
-    return { status: "members-only", from: "09:05", to: "17:55", reason: membersOnlyReason(date)! };
+    return {
+      status: "members",
+      from: "09:05",
+      to: "17:55",
+      noGuests: true,
+      reason: membersOnlyReason(date)!,
+    };
   }
   if (day === 3) return { status: "open", from: "17:00", to: "21:00" };
   if (day === 6) return { status: "open", from: "13:00", to: "17:00" };

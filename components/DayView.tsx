@@ -35,15 +35,18 @@ function formatTime(t: string): string {
 function VenueHoursLine({ hours }: { hours: ShootingHours }) {
   if (hours.status === "open") {
     return (
-      <p className="text-xs text-slate-600 -mt-2 mb-3">
-        Open {formatTime(hours.from)} – {formatTime(hours.to)}
+      <p className="text-xs text-emerald-700 -mt-2 mb-3">
+        Open to public · {formatTime(hours.from)} – {formatTime(hours.to)}
       </p>
     );
   }
-  if (hours.status === "members-only") {
+  if (hours.status === "members") {
+    const label = hours.noGuests ? "Members only — no guests" : "Members shooting";
+    const cls = hours.noGuests ? "text-amber-800" : "text-slate-600";
     return (
-      <p className="text-xs text-amber-800 -mt-2 mb-3">
-        Members only · {formatTime(hours.from)} – {formatTime(hours.to)}
+      <p className={`text-xs ${cls} -mt-2 mb-3`}>
+        {label} · {formatTime(hours.from)} – {formatTime(hours.to)}
+        {hours.reason ? <span className="opacity-70"> · {hours.reason}</span> : null}
       </p>
     );
   }
@@ -64,8 +67,8 @@ function VenueHoursLine({ hours }: { hours: ShootingHours }) {
 function HoursBanner({ hours }: { hours: ShootingHours }) {
   if (hours.status === "open") {
     return (
-      <div className="rounded-xl bg-slate-900 text-white px-4 py-3 text-sm">
-        <span className="font-semibold">Open for shooting</span>
+      <div className="rounded-xl bg-emerald-700 text-white px-4 py-3 text-sm">
+        <span className="font-semibold">Open to public</span>
         <span className="ml-2 opacity-80">
           {formatTime(hours.from)} – {formatTime(hours.to)}
         </span>
@@ -73,13 +76,16 @@ function HoursBanner({ hours }: { hours: ShootingHours }) {
       </div>
     );
   }
-  if (hours.status === "members-only") {
+  if (hours.status === "members") {
+    const headline = hours.noGuests ? "Members only — no guests" : "Members shooting";
+    const bg = hours.noGuests ? "bg-amber-700" : "bg-slate-900";
     return (
-      <div className="rounded-xl bg-amber-700 text-white px-4 py-3 text-sm">
-        <span className="font-semibold">Members only</span>
-        <span className="ml-2 opacity-90">
-          {formatTime(hours.from)} – {formatTime(hours.to)} · {hours.reason}
+      <div className={`rounded-xl ${bg} text-white px-4 py-3 text-sm`}>
+        <span className="font-semibold">{headline}</span>
+        <span className="ml-2 opacity-80">
+          {formatTime(hours.from)} – {formatTime(hours.to)}
         </span>
+        {hours.reason ? <span className="ml-2 opacity-60">· {hours.reason}</span> : null}
       </div>
     );
   }
