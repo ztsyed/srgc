@@ -71,7 +71,34 @@ export function shootingHoursFor(date: Date): ShootingHours {
   return { status: "members", from: "09:05", to: "20:55" };
 }
 
-// Trap range public-shooting hours: Wed evenings and Sat afternoons only.
+// Rifle/Pistol range public hours of operation (Handbook §8):
+//   Tuesdays  10:00 AM – 9:00 PM
+//   Saturdays  9:00 AM – 3:00 PM
+// On non-public days, R&P falls back to the club-wide members shooting rule.
+export function rpHoursFor(date: Date): ShootingHours {
+  const day = date.getDay();
+  if (isFixedClosure(date)) {
+    return { status: "closed", reason: fixedClosureReason(date)! };
+  }
+  if (isMembersOnlyHoliday(date)) {
+    return {
+      status: "members",
+      from: "09:05",
+      to: "17:55",
+      noGuests: true,
+      reason: membersOnlyReason(date)!,
+    };
+  }
+  if (day === 2) return { status: "open", from: "10:00", to: "21:00" };
+  if (day === 6) return { status: "open", from: "09:00", to: "15:00" };
+  // Mon/Wed/Thu/Fri/Sun — defer to the club-wide member rule so 1st/3rd
+  // Sunday hours and other Sunday closures all flow through automatically.
+  return shootingHoursFor(date);
+}
+
+// Trap range public hours of operation (Handbook §9):
+//   Tuesdays  5:00 PM – 9:00 PM
+//   Saturdays 9:00 AM – 3:00 PM
 // Same fixed closures and members-no-guests holidays as the club-wide rule.
 // 5-Stand uses the same schedule.
 export function trapHoursFor(date: Date): ShootingHours {
@@ -88,11 +115,11 @@ export function trapHoursFor(date: Date): ShootingHours {
       reason: membersOnlyReason(date)!,
     };
   }
-  if (day === 3) return { status: "open", from: "17:00", to: "21:00" };
-  if (day === 6) return { status: "open", from: "13:00", to: "17:00" };
+  if (day === 2) return { status: "open", from: "17:00", to: "21:00" };
+  if (day === 6) return { status: "open", from: "09:00", to: "15:00" };
   return {
     status: "schedule-only",
-    publicHours: "Wed 5:00 – 9:00 PM · Sat 1:00 – 5:00 PM",
+    publicHours: "Tue 5:00 – 9:00 PM · Sat 9:00 AM – 3:00 PM",
   };
 }
 

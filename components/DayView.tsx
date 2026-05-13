@@ -1,6 +1,6 @@
 import type { DayEvent, Venue } from "@/lib/types";
 import { VENUE_LABEL } from "@/lib/types";
-import { shootingHoursFor, trapHoursFor, type ShootingHours } from "@/lib/venue";
+import { rpHoursFor, shootingHoursFor, trapHoursFor, type ShootingHours } from "@/lib/venue";
 import EventActions from "./EventActions";
 
 function isoLocal(d: Date): string {
@@ -112,6 +112,7 @@ export default function DayView({
   newsletter?: { month: string; page?: number } | null;
 }) {
   const hours = shootingHoursFor(date);
+  const rpHours = rpHoursFor(date);
   const trapHours = trapHoursFor(date);
   const groups: Record<Venue, DayEvent[]> = {
     RP: [], TRAP: [], FIVE_STAND: [], CLUBHOUSE: [], OTHER: [],
@@ -120,7 +121,7 @@ export default function DayView({
 
   const order: Venue[] = ["RP", "TRAP", "FIVE_STAND", "CLUBHOUSE", "OTHER"];
   const venueHours: Partial<Record<Venue, ShootingHours>> = {
-    RP: hours,
+    RP: rpHours,
     TRAP: trapHours,
     FIVE_STAND: trapHours,
   };
