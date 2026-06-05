@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { Member } from "@/lib/members-shared";
 import type { DutyAssignment } from "@/lib/duty-shared";
 import EventActions from "./EventActions";
@@ -35,9 +38,27 @@ function isoLocal(d: Date): string {
 }
 
 export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, nextWorkParty, nextDuty }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem("foryou-collapsed") === "1") setCollapsed(true);
+  }, []);
+
+  function toggle() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem("foryou-collapsed", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
   return (
     <section className="rounded-2xl border bg-slate-900 text-white p-4 sm:p-5">
-      <header className="mb-3 flex items-center gap-3">
+      <header className="flex items-center gap-3">
         <span
           aria-label={`${member.firstName} ${member.lastName}`.trim() || "member"}
           className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-sm font-semibold"
@@ -48,9 +69,30 @@ export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, next
           <p className="text-xs uppercase tracking-wide opacity-60">For you</p>
           <h2 className="text-base sm:text-lg font-semibold">{member.firstName} {member.lastName}</h2>
         </div>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-controls="foryou-content"
+          className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1 text-xs opacity-70 hover:bg-slate-800 hover:opacity-100"
+        >
+          {collapsed ? "Show" : "Hide"}
+          <svg
+            viewBox="0 0 20 20"
+            className={`w-4 h-4 transition-transform ${collapsed ? "" : "rotate-180"}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden="true"
+          >
+            <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </header>
 
-      <ul className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+      {collapsed ? null : (
+        <div id="foryou-content">
+      <ul className="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
         <Row
           label="Next general meeting"
           when={nextMeeting ? `${fmtDate(nextMeeting)} · ${fmt12h("19:00")}` : "—"}
@@ -124,6 +166,8 @@ export default function ForYouCard({ member, nextMeeting, nextBoardMeeting, next
         <Link className="underline" href={`/members/${member.id}`}>Your profile</Link>
         {nextDuty == null ? <span className="ml-2">· need duty data? Re-parse latest newsletter on /admin.</span> : null}
       </p>
+        </div>
+      )}
     </section>
   );
 }
