@@ -47,6 +47,19 @@ export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolea
 
     await fs.writeFile(newsletterPdfPath(month), buf);
 
+    // Kick off the duty parse concurrently with the events parse. These are two
+    // independent Claude calls on the same PDF; running them back-to-back made
+    // the upload take ~3 minutes and tripped the ingress proxy timeout. Duty is
+    // best-effort, so fold its outcome (success or failure) into a message
+    // string here — it must never reject and fail the whole upload.
+    const dutyMessagePromise = parseDutyRoster(buf, file.name).then(
+      async (duty) => {
+        const written = await writeDutyFromParsed(duty, file.name);
+        return ` Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}.`;
+      },
+      (e) => ` Duty parse skipped: ${(e as Error).message}`,
+    );
+
     try {
       const parsed = await parseNewsletter(buf, file.name);
       const finalMonth = explicitMonth || (/^\d{4}-\d{2}$/.test(parsed.month) ? parsed.month : month);
@@ -67,15 +80,7 @@ export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolea
         await fs.rename(newsletterPdfPath(month), newsletterPdfPath(finalMonth));
       }
 
-      // Best-effort duty extraction from the same PDF — doesn't block the upload result.
-      let dutyMessage = "";
-      try {
-        const duty = await parseDutyRoster(buf, file.name);
-        const written = await writeDutyFromParsed(duty, file.name);
-        dutyMessage = ` Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}.`;
-      } catch (e) {
-        dutyMessage = ` Duty parse skipped: ${(e as Error).message}`;
-      }
+      const dutyMessage = await dutyMessagePromise;
 
       revalidatePath("/admin");
       revalidatePath("/");
@@ -86,6 +91,9 @@ export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolea
         month: finalMonth,
       };
     } catch (e) {
+      // Let the duty call settle so its writes don't dangle past the response.
+      await dutyMessagePromise;
+      console.error("[uploadNewsletter] parse failed:", e);
       return { ok: false, message: `Saved PDF but parse failed: ${(e as Error).message}` };
     }
   } catch (e) {

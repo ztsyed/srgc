@@ -6,7 +6,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer | quote }}
     nginx.ingress.kubernetes.io/proxy-body-size: 10m
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    # Newsletter upload runs the Claude parses inline and can take a couple of
+    # minutes; keep the proxy connection open long enough for the slow action
+    # (a 120s read timeout was 504-ing the browser mid-parse).
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
