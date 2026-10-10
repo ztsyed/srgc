@@ -35,13 +35,23 @@ AUTH_GOOGLE_SECRET="$(get_env AUTH_GOOGLE_SECRET)"
 ANTHROPIC_API_KEY="$(get_env ANTHROPIC_API_KEY)"
 ALLOWED_EMAILS="$(get_env ALLOWED_EMAILS)"
 ADMIN_EMAILS="$(get_env ADMIN_EMAILS)"
+LLM_PROVIDER="$(get_env LLM_PROVIDER)"
+PARSE_LLM_PROVIDER="$(get_env PARSE_LLM_PROVIDER)"
+CHAT_LLM_PROVIDER="$(get_env CHAT_LLM_PROVIDER)"
+OLLAMA_BASE_URL="$(get_env OLLAMA_BASE_URL)"
+OLLAMA_MODEL="$(get_env OLLAMA_MODEL)"
+LLM_PROVIDER="${LLM_PROVIDER:-anthropic}"
+OLLAMA_MODEL="${OLLAMA_MODEL:-gpt-oss:120b}"
+
+uses() { [ "$LLM_PROVIDER" = "$1" ] || [ "$PARSE_LLM_PROVIDER" = "$1" ] || [ "$CHAT_LLM_PROVIDER" = "$1" ]; }
 
 missing=()
 [ -z "$HOST" ]               && missing+=(DEPLOY_HOST)
 [ -z "$AUTH_SECRET" ]        && missing+=(AUTH_SECRET)
 [ -z "$AUTH_GOOGLE_ID" ]     && missing+=(AUTH_GOOGLE_ID)
 [ -z "$AUTH_GOOGLE_SECRET" ] && missing+=(AUTH_GOOGLE_SECRET)
-[ -z "$ANTHROPIC_API_KEY" ]  && missing+=(ANTHROPIC_API_KEY)
+uses anthropic && [ -z "$ANTHROPIC_API_KEY" ] && missing+=(ANTHROPIC_API_KEY)
+uses ollama    && [ -z "$OLLAMA_BASE_URL" ]   && missing+=(OLLAMA_BASE_URL)
 [ -z "$ADMIN_EMAILS" ]       && missing+=(ADMIN_EMAILS)
 if [ ${#missing[@]} -gt 0 ]; then
   echo "ERROR: missing keys in .env.local: ${missing[*]}" >&2
@@ -59,6 +69,11 @@ helm upgrade --install "${RELEASE}" deploy/helm/srgc-app \
   --set "secrets.ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
   --set "secrets.ALLOWED_EMAILS=${ALLOWED_EMAILS}" \
   --set "secrets.ADMIN_EMAILS=${ADMIN_EMAILS}" \
+  --set "llm.provider=${LLM_PROVIDER}" \
+  --set "llm.parseProvider=${PARSE_LLM_PROVIDER}" \
+  --set "llm.chatProvider=${CHAT_LLM_PROVIDER}" \
+  --set "llm.ollama.baseUrl=${OLLAMA_BASE_URL}" \
+  --set-string "llm.ollama.model=${OLLAMA_MODEL}" \
   --wait --timeout 5m
 
 echo

@@ -24,8 +24,24 @@ For Google OAuth in local dev:
 - Authorized redirect URI: `http://localhost:3000/api/auth/callback/google`.
 - Copy client ID/secret into `.env.local`.
 
-Newsletters get parsed via the Claude API on `/admin` upload. They can also
+Newsletters get parsed by an LLM on `/admin` upload. They can also
 be copied directly into `data/pdfs/` and parsed with the Re-parse button.
+
+### LLM backends
+
+Newsletter parsing and the `/chat` copilot run on either backend, chosen by
+`LLM_PROVIDER` (with optional per-feature `PARSE_LLM_PROVIDER` /
+`CHAT_LLM_PROVIDER` overrides):
+
+- **`anthropic`** — Claude via the API (`ANTHROPIC_API_KEY`). Claude reads the
+  PDFs directly.
+- **`ollama`** — a local model such as `gpt-oss:120b` on the DGX
+  (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_NUM_CTX`). gpt-oss is text-only,
+  so PDFs go through `pdftotext` (poppler) first — `brew install poppler` for
+  local dev; the Docker image includes it. The duty-roster table is rebuilt
+  from word coordinates (`lib/pdf-text.ts`) because its plain-text layout
+  scrambles which day each cell belongs to. The copilot gets as many recent
+  newsletters as fit in ~60% of the context window (Claude gets six).
 
 ## Build & push image
 
@@ -42,8 +58,11 @@ scripts/install.sh [tag]
 ```
 
 The script reads `DEPLOY_HOST`, `AUTH_SECRET`, `AUTH_GOOGLE_ID`,
-`AUTH_GOOGLE_SECRET`, `ANTHROPIC_API_KEY`, and `ALLOWED_EMAILS` from
-`.env.local` and passes them to `helm upgrade --install`. Nothing
+`AUTH_GOOGLE_SECRET`, `ALLOWED_EMAILS`, `ADMIN_EMAILS`, and the LLM settings
+(`LLM_PROVIDER`, `PARSE_LLM_PROVIDER`, `CHAT_LLM_PROVIDER`, `ANTHROPIC_API_KEY`,
+`OLLAMA_BASE_URL`, `OLLAMA_MODEL`) from `.env.local` and passes them to
+`helm upgrade --install`. `ANTHROPIC_API_KEY` is only required when a provider
+is `anthropic`; `OLLAMA_BASE_URL` only when one is `ollama`. Nothing
 identifying lives in the repo.
 
 After install:

@@ -35,6 +35,24 @@ spec:
               value: {{ include "srgc.nextauthUrl" . | quote }}
             - name: TZ
               value: {{ .Values.env.TZ | quote }}
+            - name: LLM_PROVIDER
+              value: {{ .Values.llm.provider | quote }}
+            {{- with .Values.llm.parseProvider }}
+            - name: PARSE_LLM_PROVIDER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.llm.chatProvider }}
+            - name: CHAT_LLM_PROVIDER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.llm.ollama.baseUrl }}
+            - name: OLLAMA_BASE_URL
+              value: {{ .Values.llm.ollama.baseUrl | quote }}
+            - name: OLLAMA_MODEL
+              value: {{ .Values.llm.ollama.model | quote }}
+            - name: OLLAMA_NUM_CTX
+              value: {{ .Values.llm.ollama.numCtx | quote }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: {{ include "srgc.fullname" . }}

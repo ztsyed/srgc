@@ -26,7 +26,8 @@ push or deploy a build that doesn't compile.
    - `npm run build` — must succeed. This is the real gate (typecheck alone is
      not enough; it catches client/server boundary and prerender errors).
    - Confirm `.env.local` exists and has the required keys: `DEPLOY_HOST`,
-     `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ANTHROPIC_API_KEY`,
+     `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `ANTHROPIC_API_KEY`
+     (only if an LLM provider is `anthropic`; `OLLAMA_BASE_URL` if `ollama`),
      `ADMIN_EMAILS`. `install.sh` errors out if any are missing.
    - Docker must be reachable: `docker info`. If not, start it with
      `open -a Docker` and poll `docker info` every 5s until ready (~30–60s on

@@ -6,11 +6,12 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.clusterIssuer | quote }}
     nginx.ingress.kubernetes.io/proxy-body-size: 10m
-    # Newsletter upload runs the Claude parses inline and can take a couple of
-    # minutes; keep the proxy connection open long enough for the slow action
-    # (a 120s read timeout was 504-ing the browser mid-parse).
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Newsletter upload runs the LLM parses inline and can take minutes; keep
+    # the proxy connection open long enough for the slow action (a 120s read
+    # timeout was 504-ing the browser mid-parse). On Ollama the events and duty
+    # parses queue behind each other on the DGX (~4–5 min total), hence 600.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}

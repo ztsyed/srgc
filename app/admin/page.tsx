@@ -6,6 +6,7 @@ import { HANDBOOK_PATH, ensureDataDirs } from "@/lib/paths";
 import { loadMembersFile } from "@/lib/members";
 import { loadAllowlist } from "@/lib/allowlist";
 import { loadWaitlist } from "@/lib/waitlist";
+import { listParseJobs } from "@/lib/parse-jobs";
 import AdminClient from "./AdminClient";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +25,11 @@ export default async function AdminPage() {
   const membersFile = await loadMembersFile();
   const allowlist = await loadAllowlist();
   const waitlist = await loadWaitlist();
+  const parseJobs = await listParseJobs();
   return (
     <AdminClient
       months={months}
+      parseJobs={parseJobs}
       handbookKB={handbookSize ? Math.round(handbookSize / 1024) : null}
       membersCount={membersFile?.members.length ?? 0}
       membersUploadedAt={membersFile?.uploadedAt ?? null}

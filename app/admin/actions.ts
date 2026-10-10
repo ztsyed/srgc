@@ -6,9 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth, isAdmin } from "@/lib/auth";
 import { addToAllowlist, removeFromAllowlist } from "@/lib/allowlist";
 import { removeFromWaitlist } from "@/lib/waitlist";
-import { parseNewsletter, parseDutyRoster } from "@/lib/claude";
-import { writeDutyMonth } from "@/lib/duty";
-import type { DutyAssignment } from "@/lib/duty-shared";
+import { enqueueParseJob, isParseJobActive, listParseJobs, retryParseJob, type ParseJob } from "@/lib/parse-jobs";
 import { parseMembersCsv, writeMembersFile } from "@/lib/members";
 import {
   HANDBOOK_PATH,
@@ -45,139 +43,47 @@ export async function uploadNewsletter(formData: FormData): Promise<{ ok: boolea
       return { ok: false, message: "Couldn't determine month from filename. Provide it manually (YYYY-MM)." };
     }
 
+    if (await isParseJobActive(month)) {
+      return { ok: false, message: `${month} is still being parsed — wait for it to finish before re-uploading.` };
+    }
     await fs.writeFile(newsletterPdfPath(month), buf);
 
-    // Kick off the duty parse concurrently with the events parse. These are two
-    // independent Claude calls on the same PDF; running them back-to-back made
-    // the upload take ~3 minutes and tripped the ingress proxy timeout. Duty is
-    // best-effort, so fold its outcome (success or failure) into a message
-    // string here — it must never reject and fail the whole upload.
-    const dutyMessagePromise = parseDutyRoster(buf, file.name).then(
-      async (duty) => {
-        const written = await writeDutyFromParsed(duty, file.name);
-        return ` Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}.`;
-      },
-      (e) => ` Duty parse skipped: ${(e as Error).message}`,
-    );
-
-    try {
-      const parsed = await parseNewsletter(buf, file.name);
-      const finalMonth = explicitMonth || (/^\d{4}-\d{2}$/.test(parsed.month) ? parsed.month : month);
-      // Write the events JSON FIRST. Only after that succeeds do we rename the
-      // PDF — if the rename fails we still have the data, and if the events
-      // write fails we haven't moved the PDF away from where we just put it.
-      await fs.writeFile(eventsJsonPath(finalMonth), JSON.stringify(parsed.events, null, 2));
-      if (parsed.eventsPage) {
-        await fs.writeFile(
-          eventsMetaPath(finalMonth),
-          JSON.stringify({ eventsPage: parsed.eventsPage }, null, 2),
-        );
-      } else {
-        // No page reported — drop any stale meta so the pill hides cleanly.
-        await fs.rm(eventsMetaPath(finalMonth), { force: true });
-      }
-      if (finalMonth !== month) {
-        await fs.rename(newsletterPdfPath(month), newsletterPdfPath(finalMonth));
-      }
-
-      const dutyMessage = await dutyMessagePromise;
-
-      revalidatePath("/admin");
-      revalidatePath("/");
-      revalidatePath("/calendar");
-      return {
-        ok: true,
-        message: `Parsed ${parsed.events.length} events for ${finalMonth}.${dutyMessage}`,
-        month: finalMonth,
-      };
-    } catch (e) {
-      // Let the duty call settle so its writes don't dangle past the response.
-      await dutyMessagePromise;
-      console.error("[uploadNewsletter] parse failed:", e);
-      return { ok: false, message: `Saved PDF but parse failed: ${(e as Error).message}` };
-    }
+    // Parsing takes minutes (longer on the local model), so it runs as a
+    // background job with retries; the admin page polls its status.
+    const queued = await enqueueParseJob({
+      month,
+      steps: ["events", "duty"],
+      explicitMonth: !!explicitMonth,
+      source: file.name,
+    });
+    revalidatePath("/admin");
+    return { ...queued, message: `Saved PDF. ${queued.message}`, month };
   } catch (e) {
     return { ok: false, message: `Upload failed: ${(e as Error).message}` };
   }
 }
 
-async function writeDutyFromParsed(
-  duty: { months: string[]; assignments: DutyAssignment[] },
-  source: string,
-): Promise<{ months: string[]; skippedMonths: string[]; totalAssignments: number }> {
-  // Group assignments by month and write one file per month.
-  const byMonth = new Map<string, DutyAssignment[]>();
-  for (const a of duty.assignments) {
-    const key = a.date.slice(0, 7);
-    const arr = byMonth.get(key) ?? [];
-    arr.push(a);
-    byMonth.set(key, arr);
-  }
-  const writtenMonths: string[] = [];
-  const skippedMonths: string[] = [];
-  const uploadedAt = new Date().toISOString();
-  for (const month of duty.months) {
-    const assignments = (byMonth.get(month) ?? []).sort((a, b) =>
-      a.date === b.date ? a.role.localeCompare(b.role) : a.date.localeCompare(b.date),
-    );
-    if (assignments.length === 0) {
-      skippedMonths.push(month);
-      continue;
-    }
-    await writeDutyMonth({ month, source, uploadedAt, assignments });
-    writtenMonths.push(month);
-  }
-  return {
-    months: writtenMonths,
-    skippedMonths,
-    totalAssignments: duty.assignments.length,
-  };
-}
-
 export async function reparseDuty(month: string): Promise<{ ok: boolean; message: string }> {
   await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
-  try {
-    const buf = await fs.readFile(newsletterPdfPath(month));
-    const duty = await parseDutyRoster(buf, `${month}.pdf`);
-    const written = await writeDutyFromParsed(duty, `${month}.pdf`);
-    revalidatePath("/admin");
-    revalidatePath("/");
-    const skipNote = written.skippedMonths.length
-      ? ` (parser found nothing for ${written.skippedMonths.join(", ")} — old data for those months is preserved)`
-      : "";
-    return {
-      ok: true,
-      message: `Duty: ${written.totalAssignments} assignments across ${written.months.join(", ")}${skipNote}.`,
-    };
-  } catch (e) {
-    return { ok: false, message: (e as Error).message };
-  }
+  return enqueueParseJob({ month, steps: ["duty"], explicitMonth: true, source: `${month}.pdf` });
 }
 
 export async function reparseMonth(month: string): Promise<{ ok: boolean; message: string }> {
   await requireAdmin();
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
-  try {
-    const buf = await fs.readFile(newsletterPdfPath(month));
-    const parsed = await parseNewsletter(buf, `${month}.pdf`);
-    await fs.writeFile(eventsJsonPath(month), JSON.stringify(parsed.events, null, 2));
-    if (parsed.eventsPage) {
-      await fs.writeFile(
-        eventsMetaPath(month),
-        JSON.stringify({ eventsPage: parsed.eventsPage }, null, 2),
-      );
-    } else {
-      await fs.rm(eventsMetaPath(month), { force: true });
-    }
-    revalidatePath("/admin");
-    revalidatePath("/");
-    revalidatePath("/calendar");
-    const pageNote = parsed.eventsPage ? ` (page ${parsed.eventsPage})` : " (page not detected)";
-    return { ok: true, message: `Re-parsed ${parsed.events.length} events for ${month}${pageNote}.` };
-  } catch (e) {
-    return { ok: false, message: (e as Error).message };
-  }
+  return enqueueParseJob({ month, steps: ["events"], explicitMonth: true, source: `${month}.pdf` });
+}
+
+export async function retryParse(month: string): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: "Bad month." };
+  return retryParseJob(month);
+}
+
+export async function getParseJobs(): Promise<ParseJob[]> {
+  await requireAdmin();
+  return listParseJobs();
 }
 
 export async function deleteMonth(month: string): Promise<{ ok: boolean; message: string }> {

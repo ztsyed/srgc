@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   uploadNewsletter,
   reparseMonth,
   reparseDuty,
+  retryParse,
+  getParseJobs,
   deleteMonth,
   uploadHandbook,
   uploadMembersCsv,
@@ -15,11 +18,20 @@ import {
 } from "./actions";
 import type { AllowlistEntry } from "@/lib/allowlist";
 import type { WaitlistEntry } from "@/lib/waitlist";
+import type { ParseJob } from "@/lib/parse-jobs";
 
 type Result = { ok: boolean; message: string } | null;
 
+const JOB_BADGE: Record<ParseJob["state"], string> = {
+  queued: "bg-slate-100 text-slate-700",
+  running: "bg-amber-100 text-amber-900",
+  done: "bg-emerald-100 text-emerald-900",
+  failed: "bg-rose-100 text-rose-900",
+};
+
 export default function AdminClient({
   months,
+  parseJobs: initialJobs,
   handbookKB,
   membersCount,
   membersUploadedAt,
@@ -28,6 +40,7 @@ export default function AdminClient({
   currentAdminEmail,
 }: {
   months: string[];
+  parseJobs: ParseJob[];
   handbookKB: number | null;
   membersCount: number;
   membersUploadedAt: string | null;
@@ -54,6 +67,34 @@ export default function AdminClient({
     });
   }
   const isRunning = (id: string) => runningId === id;
+
+  // Parse jobs run in the background on the server; poll while any is active
+  // and refresh the page data when one finishes.
+  const router = useRouter();
+  const [jobs, setJobs] = useState(initialJobs);
+  useEffect(() => setJobs(initialJobs), [initialJobs]);
+  const anyActive = jobs.some((j) => j.state === "queued" || j.state === "running");
+  const wasActive = useRef(anyActive);
+  useEffect(() => {
+    if (!anyActive) {
+      if (wasActive.current) router.refresh();
+      wasActive.current = false;
+      return;
+    }
+    wasActive.current = true;
+    const t = setInterval(() => {
+      getParseJobs().then(setJobs).catch(() => {});
+    }, 5000);
+    return () => clearInterval(t);
+  }, [anyActive, router]);
+  // Kick the poller right after queueing something.
+  function runJobAction(id: string, fn: () => Promise<Result>) {
+    run(id, async () => {
+      const r = await fn();
+      setJobs(await getParseJobs());
+      return r;
+    });
+  }
 
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
@@ -175,14 +216,15 @@ export default function AdminClient({
       <section className="rounded-2xl border bg-white p-4 sm:p-6 space-y-4">
         <h2 className="font-semibold">Upload monthly newsletter</h2>
         <p className="text-sm text-slate-500">
-          Drop the PDF — Claude will extract the &ldquo;Upcoming Events&rdquo; table.
+          Drop the PDF — the events table and duty roster are extracted in the
+          background (a few minutes; failed steps are retried automatically).
         </p>
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            run("upload-newsletter", () => uploadNewsletter(fd));
+            runJobAction("upload-newsletter", () => uploadNewsletter(fd));
           }}
         >
           <input type="file" name="file" accept="application/pdf" required className="block text-sm" />
@@ -198,10 +240,51 @@ export default function AdminClient({
             disabled={pending}
             className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium disabled:opacity-50"
           >
-            {isRunning("upload-newsletter") ? "Working…" : "Upload & parse"}
+            {isRunning("upload-newsletter") ? "Uploading…" : "Upload & parse"}
           </button>
         </form>
       </section>
+
+      {jobs.length > 0 ? (
+        <section className="rounded-2xl border bg-white p-4 sm:p-6">
+          <h2 className="font-semibold mb-3">Parse jobs</h2>
+          <ul className="divide-y">
+            {jobs.slice(0, 6).map((j) => (
+              <li key={j.month} className="py-3 space-y-1">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm">{j.month}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${JOB_BADGE[j.state]}`}>
+                    {j.state === "running" && j.step ? `running · ${j.step}` : j.state}
+                  </span>
+                  <span className="text-xs text-slate-500 flex-1 truncate">
+                    updated {new Date(j.updatedAt).toLocaleString()}
+                  </span>
+                  {j.state === "failed" ? (
+                    <button
+                      disabled={pending}
+                      className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
+                      onClick={() => runJobAction(`retry-${j.month}`, () => retryParse(j.month))}
+                    >
+                      {isRunning(`retry-${j.month}`) ? "Retrying…" : "Retry"}
+                    </button>
+                  ) : null}
+                </div>
+                {j.steps.map((s) =>
+                  j.results[s] ? (
+                    <p key={s} className={`text-sm ${j.results[s].ok ? "text-slate-700" : "text-rose-700"}`}>
+                      {s}: {j.results[s].message}
+                    </p>
+                  ) : null,
+                )}
+                <details className="text-xs text-slate-500">
+                  <summary className="cursor-pointer">Log</summary>
+                  <pre className="mt-1 whitespace-pre-wrap font-mono">{j.log.join("\n")}</pre>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border bg-white p-4 sm:p-6">
         <h2 className="font-semibold mb-3">Ingested months</h2>
@@ -215,14 +298,14 @@ export default function AdminClient({
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => run(`reparse-events-${m}`, () => reparseMonth(m))}
+                  onClick={() => runJobAction(`reparse-events-${m}`, () => reparseMonth(m))}
                 >
                   {isRunning(`reparse-events-${m}`) ? "Re-parsing…" : "Re-parse events"}
                 </button>
                 <button
                   disabled={pending}
                   className="text-sm px-3 py-1.5 rounded-lg border hover:bg-slate-50 disabled:opacity-50"
-                  onClick={() => run(`reparse-duty-${m}`, () => reparseDuty(m))}
+                  onClick={() => runJobAction(`reparse-duty-${m}`, () => reparseDuty(m))}
                 >
                   {isRunning(`reparse-duty-${m}`) ? "Re-parsing…" : "Re-parse duty"}
                 </button>

@@ -18,6 +18,9 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV DATA_DIR=/data
 
+# pdftotext: extracts newsletter/handbook text for the Ollama (text-only) LLM path.
+RUN apk add --no-cache poppler-utils
+
 RUN addgroup -g 1001 nodejs && adduser -S nextjs -u 1001 -G nodejs \
  && mkdir -p /data && chown -R nextjs:nodejs /data
 

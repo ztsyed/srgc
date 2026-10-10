@@ -4,6 +4,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { HANDBOOK_PATH, PDF_DIR, ensureDataDirs } from "./paths";
+import { anthropicApiKey, llmProvider, ollamaChatStream, ollamaConfig, type OllamaMessage } from "./llm";
+import { formatPages, pdfFileText } from "./pdf-text";
 
 export const ChatRoleSchema = z.enum(["user", "assistant"]);
 export const ChatMessageSchema = z.object({
@@ -86,20 +88,31 @@ async function buildCorpusBlocks(maxNewsletters = 6): Promise<Anthropic.ContentB
   }
   const newsletters = (await listNewsletterPdfs()).slice(0, maxNewsletters);
   for (const n of newsletters) {
-    const [y, m] = n.month.split("-").map(Number);
-    const monthName = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    blocks.push(await asDocBlock(n.abs, `The Target Shooter — ${monthName}`));
+    blocks.push(await asDocBlock(n.abs, newsletterTitle(n.month)));
   }
   return blocks;
+}
+
+function newsletterTitle(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  const monthName = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  return `The Target Shooter — ${monthName}`;
 }
 
 export async function streamCopilotReply(
   history: ChatMessage[],
   question: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  const client = new Anthropic({ apiKey });
+  return llmProvider("chat") === "ollama"
+    ? streamOllamaReply(history, question)
+    : streamClaudeReply(history, question);
+}
+
+async function streamClaudeReply(
+  history: ChatMessage[],
+  question: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const client = new Anthropic({ apiKey: anthropicApiKey() });
 
   const corpus = await buildCorpusBlocks();
   if (corpus.length === 0) {
@@ -163,6 +176,106 @@ export async function streamCopilotReply(
     cancel() {
       // Client closed the connection — stop the upstream Claude call.
       stream.controller.abort();
+    },
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Ollama (gpt-oss) — text-only, so the corpus is pdftotext output
+// ──────────────────────────────────────────────────────────────────────────
+
+// Rough chars-per-token for compacted pdftotext output; only used to decide
+// how many newsletters fit, so it errs on the generous side.
+const CHARS_PER_TOKEN = 3.5;
+// Most recent turns kept for the local model — the corpus dominates the window.
+const OLLAMA_MAX_HISTORY = 12;
+
+// Handbook + as many recent newsletters as fit in ~60% of the context window,
+// leaving the rest for history, reasoning and the answer.
+async function buildTextCorpus(): Promise<{ text: string; docs: number }> {
+  const budget = ollamaConfig().numCtx * 0.6 * CHARS_PER_TOKEN;
+  const parts: string[] = [];
+  let used = 0;
+  if (await fileExists(HANDBOOK_PATH)) {
+    const doc = docText("SRGC Policies and Procedures Handbook", await pdfFileText(HANDBOOK_PATH));
+    parts.push(doc);
+    used += doc.length;
+  }
+  const newsletters = (await listNewsletterPdfs()).slice(0, 6);
+  for (const [i, n] of newsletters.entries()) {
+    const doc = docText(newsletterTitle(n.month), await pdfFileText(n.abs));
+    // Always include the newest newsletter, even if it overflows.
+    if (i > 0 && used + doc.length > budget) break;
+    parts.push(doc);
+    used += doc.length;
+  }
+  return { text: parts.join("\n\n"), docs: parts.length };
+}
+
+// The roster table's page text doesn't say which day a cell belongs to (see
+// pdf-text.ts), so newsletters also carry the day-by-day normalised roster.
+function docText(title: string, { pages, dutyRoster }: { pages: string[]; dutyRoster: string | null }): string {
+  const roster = dutyRoster
+    ? `\n=== duty roster (one entry per day) ===\n${dutyRoster}`
+    : "";
+  return `<document title="${title}">\n${formatPages(pages, "page", true)}${roster}\n</document>`;
+}
+
+async function streamOllamaReply(
+  history: ChatMessage[],
+  question: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const corpus = await buildTextCorpus();
+  if (corpus.docs === 0) {
+    throw new Error("No documents loaded yet — upload the handbook and a newsletter via /admin first.");
+  }
+
+  // Corpus goes in the system message so the prompt prefix is identical
+  // across turns and Ollama can reuse its KV cache instead of re-reading it.
+  const system =
+    SYSTEM_PROMPT +
+    `\n\nThe documents are plain text extracted from the PDFs. Each page starts
+with a line "=== page n ===" — use those numbers for newsletter citations.
+Each newsletter ends with its duty roster rewritten one entry per day; prefer
+it for "who is on duty" questions and cite it as
+"— <Month Year> newsletter, duty roster".
+Write plain prose (light Markdown is fine); no tables.\n\n` +
+    corpus.text;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const messages: OllamaMessage[] = [
+    { role: "system", content: system },
+    ...history.slice(-OLLAMA_MAX_HISTORY).map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: `Today's date is ${today}.\n\nQuestion: ${question}` },
+  ];
+
+  const abort = new AbortController();
+  const encoder = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const stream = ollamaChatStream({ messages, think: "medium", maxTokens: 8192, signal: abort.signal });
+        let step = await stream.next();
+        while (!step.done) {
+          controller.enqueue(encoder.encode(sseLine("token", step.value)));
+          step = await stream.next();
+        }
+        controller.enqueue(encoder.encode(sseLine("done", {
+          ...step.value,
+          cacheReadTokens: 0,
+          cacheCreatedTokens: 0,
+        })));
+      } catch (e) {
+        if (!abort.signal.aborted) {
+          controller.enqueue(encoder.encode(sseLine("error", (e as Error).message)));
+        }
+      } finally {
+        try { controller.close(); } catch { /* already closed by cancel */ }
+      }
+    },
+    cancel() {
+      // Client closed the connection — stop generation on the DGX.
+      abort.abort();
     },
   });
 }
