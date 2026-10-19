@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Markdown from "@/components/Markdown";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -133,6 +134,8 @@ export default function ChatClient({ ready }: { ready: boolean }) {
                 <span className="inline-flex gap-1 items-center text-slate-500 text-sm">
                   <Dot /> <Dot delay="150ms" /> <Dot delay="300ms" />
                 </span>
+              ) : m.role === "assistant" ? (
+                <Markdown>{m.content}</Markdown>
               ) : (
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
               )}
