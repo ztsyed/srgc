@@ -3,7 +3,10 @@ import remarkGfm from "remark-gfm";
 
 // Renders LLM answers. Raw HTML in the source is not rendered (react-markdown's
 // default), and unsafe link protocols are stripped by its default urlTransform.
+// Images are never loaded: a remote <img> fetches with no click, so a prompt
+// injection in a document could use one to exfiltrate data via its URL.
 const components: Components = {
+  img: ({ alt }) => (alt ? <span className="italic text-slate-500">[{alt}]</span> : null),
   p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
   ul: ({ children }) => <ul className="my-2 pl-5 list-disc space-y-1">{children}</ul>,
   ol: ({ children }) => <ol className="my-2 pl-5 list-decimal space-y-1">{children}</ol>,
