@@ -40,6 +40,7 @@ PARSE_LLM_PROVIDER="$(get_env PARSE_LLM_PROVIDER)"
 CHAT_LLM_PROVIDER="$(get_env CHAT_LLM_PROVIDER)"
 OLLAMA_BASE_URL="$(get_env OLLAMA_BASE_URL)"
 OLLAMA_MODEL="$(get_env OLLAMA_MODEL)"
+CRON_SECRET="$(get_env CRON_SECRET)"
 LLM_PROVIDER="${LLM_PROVIDER:-anthropic}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-gpt-oss:120b}"
 
@@ -58,6 +59,11 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
+# CRON_SECRET is optional: when unset the chart keeps the existing value, so
+# set it in .env.local only to rotate it.
+extra=()
+[ -n "$CRON_SECRET" ] && extra+=(--set "secrets.CRON_SECRET=${CRON_SECRET}")
+
 echo "→ Upgrading ${RELEASE} to image tag :${TAG}…"
 helm upgrade --install "${RELEASE}" deploy/helm/srgc-app \
   --namespace "${NAMESPACE}" \
@@ -74,6 +80,7 @@ helm upgrade --install "${RELEASE}" deploy/helm/srgc-app \
   --set "llm.chatProvider=${CHAT_LLM_PROVIDER}" \
   --set "llm.ollama.baseUrl=${OLLAMA_BASE_URL}" \
   --set-string "llm.ollama.model=${OLLAMA_MODEL}" \
+  ${extra[@]+"${extra[@]}"} \
   --wait --timeout 5m
 
 echo
